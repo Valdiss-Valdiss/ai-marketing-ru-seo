@@ -2,9 +2,9 @@
 
 SEO-аудит на русском языке для OpenCode и Claude Code. Анализ сайта для Google и Яндекс.
 
-## Установка
+## Для пользователей: Установка
 
-### Для OpenCode
+### OpenCode
 
 ```bash
 npm install -g market-ru-seo
@@ -21,18 +21,20 @@ npm install -g market-ru-seo
 }
 ```
 
-Или используйте путь напрямую:
+Или используйте путь к глобальному npm:
 
 ```json
 {
   "plugin": [
     "...existing plugins...",
-    "C:/path/to/node_modules/market-ru-seo/.opencode/plugins/market-ru-seo.js"
+    "ПУТЬ_К_NPM/node_modules/market-ru-seo/.opencode/plugins/market-ru-seo.js"
   ]
 }
 ```
 
-### Для Claude Code
+Найти путь: `npm root -g`
+
+### Claude Code
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Valdiss-Valdiss/ai-marketing-ru-seo/main/install.sh | bash
@@ -93,7 +95,7 @@ market-ru-seo/
 ├── skills/market-ru-seo/
 │   └── SKILL.md                    # Основной скилл
 ├── agents/
-│   └── market-ru-seo.md            # Агент для анализа
+│   └── market-ru-seo.md            # Агент для анализа (если есть)
 ├── scripts/
 │   └── analyze_page.py            # Python скрипт анализа
 ├── examples/
@@ -104,6 +106,7 @@ market-ru-seo/
 ├── package.json                    # NPM манифест
 ├── install.sh                      # Установка для Claude Code
 ├── uninstall.sh                    # Удаление для Claude Code
+├── AGENT_INSTALL.md                # Инструкция для AI-агента
 └── README.md
 ```
 
@@ -111,6 +114,13 @@ market-ru-seo/
 
 - Python 3.x (для автоматического анализа)
 - OpenCode или Claude Code
+
+## Для AI-агентов
+
+Если вы AI-агент и хотите установить этот скилл автоматически:
+
+1. Прочитайте файл `AGENT_INSTALL.md` в этом репозитории
+2. Следуйте инструкциям по установке для вашей IDE
 
 ## Другие скиллы
 
