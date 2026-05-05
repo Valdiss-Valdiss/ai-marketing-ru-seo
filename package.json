@@ -1,0 +1,24 @@
+{
+  "name": "market-ru-seo",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "SEO-аудит на русском языке для OpenCode и Claude Code",
+  "main": ".opencode/plugins/market-ru-seo.js",
+  "keywords": [
+    "opencode",
+    "claude-code",
+    "seo",
+    "marketing",
+    "russian"
+  ],
+  "author": "Valdiss",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Valdiss-Valdiss/ai-marketing-ru-seo"
+  },
+  "bugs": {
+    "url": "https://github.com/Valdiss-Valdiss/ai-marketing-ru-seo/issues"
+  },
+  "homepage": "https://github.com/Valdiss-Valdiss/ai-marketing-ru-seo#readme"
+}

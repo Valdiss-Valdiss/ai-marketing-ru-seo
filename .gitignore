@@ -1,0 +1,26 @@
+# Temporary files
+temp/
+tmp/
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+.env
+
+# Backup archives (local)
+*.zip
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
