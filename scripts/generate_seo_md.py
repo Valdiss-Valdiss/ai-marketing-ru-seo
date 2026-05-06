@@ -232,7 +232,7 @@ def generate_md_report(url, analysis):
         ("HTTPS", yandex_breakdown.get("https", {})),
     ]
 
-    def build_breakdown_table(items):
+    def build_breakdown_table(items, total_score, total_max):
         rows = "| Фактор | Баллы | Макс | Текущее | Статус |\n"
         rows += "|--------|-------|------|---------|--------|\n"
         for name, data in items:
@@ -243,10 +243,12 @@ def generate_md_report(url, analysis):
             current_escaped = escape_md(truncate(str(current), 50))
             name_escaped = escape_md(name)
             rows += f"| {name_escaped} | {score} | {max_val} | {current_escaped} | {icon} {status_text} |\n"
+        icon, status_text = get_status_icon_and_text(total_score, total_max)
+        rows += f"| **ИТОГО** | **{total_score}** | **{total_max}** | — | {icon} {status_text} |\n"
         return rows
 
-    google_table = build_breakdown_table(google_items)
-    yandex_table = build_breakdown_table(yandex_items)
+    google_table = build_breakdown_table(google_items, google_score, google_max)
+    yandex_table = build_breakdown_table(yandex_items, yandex_score, yandex_max)
 
     yandex_data = analysis.get("yandex", {})
     yandex_metrics = yandex_data.get("yandex_metrics_installed", False)
@@ -308,6 +310,15 @@ def generate_md_report(url, analysis):
 ## Приоритизированные рекомендации
 
 {recommendations}
+
+---
+
+## Хотите радикально повысить эффективность бизнеса?
+
+Мы внедряем передовые инструменты ИИ для кратного роста прибыли. Напишите нам!
+
+**[Хочу увеличить прибыль](https://open4.dev/#contact)**
+
 ---
 
 *Отчёт сгенерирован Искуственным интеллектом. ИИ может ошибаться.*

@@ -1152,13 +1152,19 @@ def generate_html_report(url, analysis):
         }}
 
         .table-scroll-wrapper::after {{
-            content: "Поверните экран для лучшего просмотра таблицы";
-            display: block;
-            text-align: center;
-            font-size: 11px;
-            color: var(--tp-text-light);
-            padding: 8px 0;
-            font-style: italic;
+            display: none;
+        }}
+
+        @media (max-width: 767px) {{
+            .table-scroll-wrapper::after {{
+                content: "Поверните экран для лучшего просмотра таблицы";
+                display: block;
+                text-align: center;
+                font-size: 11px;
+                color: var(--tp-text-light);
+                padding: 8px 0;
+                font-style: italic;
+            }}
         }}
 
         /* Tables */
@@ -1653,10 +1659,10 @@ def generate_html_report(url, analysis):
     <!-- CTA Section -->
     <section class="cta-section">
         <div class="container">
-            <h2>Нужна помощь с SEO-оптимизацией?</h2>
-            <p>Команда open4.dev поможет исправить найденные проблемы и улучшить позиции сайта в поисковых системах.</p>
+            <h2>Хотите радикально повысить эффективность бизнеса?</h2>
+            <p>Мы внедряем передовые инструменты ИИ для кратного роста прибыли. Напишите нам!</p>
             <a href="https://open4.dev/#contact" class="tp-btn tp-btn-accent">
-                <span>Связаться с нами</span>
+                <span>Хочу увеличить прибыль</span>
             </a>
         </div>
     </section>
