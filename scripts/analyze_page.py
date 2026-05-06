@@ -4,7 +4,7 @@ Marketing Page Analyzer — Utility script for AI Marketing Claude Code Skills
 Analyzes a webpage for marketing effectiveness: SEO elements, content structure,
 trust signals, CTAs, social proof, and conversion optimization indicators.
 
-Supports both Google and Yandex SEO analysis with combined scoring.
+Supports both Google and Yandex SEO analysis with combined scoring (0-20 scale).
 """
 
 import sys
@@ -15,6 +15,7 @@ import urllib.error
 import ssl
 from html.parser import HTMLParser
 from urllib.parse import urlparse, urljoin
+from datetime import datetime
 
 
 class MarketingPageParser(HTMLParser):
@@ -43,6 +44,14 @@ class MarketingPageParser(HTMLParser):
         self._yml_feed = ""
         self._yandex_metrics = []
 
+        # Commercial markers (new for 0-20 scoring)
+        self._commercial_markers = {
+            "phones": [],
+            "emails": [],
+            "addresses": [],
+            "inn_ogrn": []
+        }
+
         # State tracking
         self._current_tag = None
         self._current_attrs = {}
@@ -62,12 +71,14 @@ class MarketingPageParser(HTMLParser):
         self._robots_meta = ""
         self._has_https = False
 
+        # For collecting all text (including outside tags)
+        self._all_text_for_matching = ""
+
     def handle_starttag(self, tag, attrs):
         attrs_dict = dict(attrs)
         self._current_tag = tag
         self._current_attrs = attrs_dict
 
-        # Check for HTTPS
         if tag == "meta" and attrs_dict.get("http-equiv", "").lower() == "upgrade-insecure-requests":
             self._has_https = True
 
@@ -94,7 +105,6 @@ class MarketingPageParser(HTMLParser):
                 self.og_tags[prop] = content
 
         elif tag == "html":
-            # Check for turbo-html attribute (Yandex Turbo pages)
             if "turbo" in attrs_dict.get("attributes", {}) or "turbo" in str(attrs):
                 self._has_turbo = True
 
@@ -106,7 +116,6 @@ class MarketingPageParser(HTMLParser):
             if "canonical" in rel:
                 self._canonical = href
 
-            # Check for YML feed (Yandex Market export)
             if "alternate" in rel and "xml" in type_attr and "yml" in href.lower():
                 self._yml_feed = href
 
@@ -119,7 +128,6 @@ class MarketingPageParser(HTMLParser):
             self._current_text = ""
             href = attrs_dict.get("href", "")
             self.links.append({"href": href, "text": "", "attrs": attrs_dict})
-            # Check for social links
             social_platforms = ["twitter.com", "x.com", "facebook.com", "linkedin.com",
                                 "instagram.com", "youtube.com", "tiktok.com", "github.com"]
             for platform in social_platforms:
@@ -161,54 +169,90 @@ class MarketingPageParser(HTMLParser):
             src = attrs_dict.get("src", "")
             if src:
                 self.scripts.append(src)
-                # Detect tracking scripts (Google)
-                tracking_indicators = {
-                    "gtag": "Google Analytics (gtag)",
-                    "googletagmanager": "Google Tag Manager",
-                    "google-analytics": "Google Analytics",
-                    "analytics": "Analytics",
-                    "fbevents": "Meta Pixel",
-                    "facebook": "Meta/Facebook",
-                    "snap.licdn": "LinkedIn Insight Tag",
-                    "hotjar": "Hotjar",
-                    "fullstory": "FullStory",
-                    "mixpanel": "Mixpanel",
-                    "amplitude": "Amplitude",
-                    "segment": "Segment",
-                    "hubspot": "HubSpot",
-                    "intercom": "Intercom",
-                    "crisp": "Crisp Chat",
-                    "drift": "Drift",
-                    "tiktok": "TikTok Pixel",
-                    "clarity": "Microsoft Clarity"
-                }
-                src_lower = src.lower()
-                for indicator, name in tracking_indicators.items():
-                    if indicator in src_lower:
-                        self.tracking_scripts.append(name)
+                self._detect_tracking_scripts(src)
 
-                # Detect Yandex Metrica
-                yandex_indicators = {
-                    "mc.webvisor.com": "Yandex Metrica",
-                    "top100": "Yandex Top100",
-                    "metrika": "Yandex Metrica"
-                }
-                for indicator, name in yandex_indicators.items():
-                    if indicator in src_lower:
-                        # Extract counter ID from URL
-                        match = re.search(r'counter[_-]?(\d+)', src_lower)
-                        counter_id = match.group(1) if match else "unknown"
-                        self._yandex_metrics.append({"name": name, "counter_id": counter_id})
+    def _detect_tracking_scripts(self, src):
+        """Detect Google and Yandex tracking scripts."""
+        tracking_indicators = {
+            "gtag": "Google Analytics (gtag)",
+            "googletagmanager": "Google Tag Manager",
+            "google-analytics": "Google Analytics",
+            "analytics": "Analytics",
+            "fbevents": "Meta Pixel",
+            "facebook": "Meta/Facebook",
+            "snap.licdn": "LinkedIn Insight Tag",
+            "hotjar": "Hotjar",
+            "fullstory": "FullStory",
+            "mixpanel": "Mixpanel",
+            "amplitude": "Amplitude",
+            "segment": "Segment",
+            "hubspot": "HubSpot",
+            "intercom": "Intercom",
+            "crisp": "Crisp Chat",
+            "drift": "Drift",
+            "tiktok": "TikTok Pixel",
+            "clarity": "Microsoft Clarity"
+        }
+        src_lower = src.lower()
+        for indicator, name in tracking_indicators.items():
+            if indicator in src_lower:
+                self.tracking_scripts.append(name)
+
+        yandex_indicators = {
+            "mc.webvisor.com": "Yandex Metrica",
+            "top100": "Yandex Top100",
+            "metrika": "Yandex Metrica"
+        }
+        for indicator, name in yandex_indicators.items():
+            if indicator in src_lower:
+                match = re.search(r'counter[_-]?(\d+)', src_lower)
+                counter_id = match.group(1) if match else "unknown"
+                self._yandex_metrics.append({"name": name, "counter_id": counter_id})
+
+    def _detect_commercial_markers(self, text):
+        """Detect commercial markers: phones, emails, addresses, INN/OGRN."""
+        phone_patterns = [
+            r'8\s*\(?\s*\d{3}\s*\)?\s*\d{3}\s*[-–]?\s*\d{2}\s*[-–]?\s*\d{2}',
+            r'8\s*\d{10}',
+            r'\+7\s*\(?\s*\d{3}\s*\)?\s*\d{3}\s*[-–]?\s*\d{2}\s*[-–]?\s*\d{2}',
+            r'8-800-\d{3}-\d{2}-\d{2}',
+            r'8‑800‑\d{3}‑\d{2}‑\d{2}',
+        ]
+        for pattern in phone_patterns:
+            phones = re.findall(pattern, text)
+            self._commercial_markers["phones"].extend(phones)
+
+        email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+        emails = re.findall(email_pattern, text)
+        self._commercial_markers["emails"].extend(emails)
+
+        inn_pattern = r'\bИНН\s*\d{10,12}\b'
+        inn_matches = re.findall(inn_pattern, text, re.IGNORECASE)
+        self._commercial_markers["inn_ogrn"].extend(inn_matches)
+
+        ogrn_pattern = r'\bОГРН\s*\d{13,15}\b'
+        ogrn_matches = re.findall(ogrn_pattern, text, re.IGNORECASE)
+        self._commercial_markers["inn_ogrn"].extend(ogrn_matches)
+
+        address_patterns = [
+            r'\d{6},?\s*[г|G|г\.]\s*[а-яА-Я]+\.?',
+            r'[г|G][\.\s]+[а-яА-Я]+,?\s*[ул\.?|пер\.?|пр\.?][\s]+[а-яА-Я]+',
+        ]
+        for pattern in address_patterns:
+            addresses = re.findall(pattern, text)
+            self._commercial_markers["addresses"].extend(addresses)
 
     def handle_endtag(self, tag):
         if tag == "title":
             self._in_title = False
             self.title = self._current_text.strip()
+            self._all_text_for_matching += " " + self._current_text
 
         elif tag in self.headings and self._in_heading == tag:
             text = self._current_text.strip()
             if text:
                 self.headings[tag].append(text)
+                self._all_text_for_matching += " " + text
             self._in_heading = None
 
         elif tag == "a" and self._in_a:
@@ -216,7 +260,6 @@ class MarketingPageParser(HTMLParser):
             text = self._current_text.strip()
             if self.links:
                 self.links[-1]["text"] = text
-            # Detect CTAs
             cta_words = ["sign up", "get started", "try free", "start free", "buy now",
                          "subscribe", "join", "register", "download", "book", "schedule",
                          "request demo", "contact us", "learn more", "see pricing",
@@ -243,18 +286,15 @@ class MarketingPageParser(HTMLParser):
         elif tag == "script" and self._in_script:
             self._in_script = False
             script_content = self._current_text
-            # Check for inline tracking
             if "gtag" in script_content or "dataLayer" in script_content:
                 if "Google Analytics" not in self.tracking_scripts and "Google Tag Manager" not in self.tracking_scripts:
                     self.tracking_scripts.append("Google Analytics/GTM (inline)")
             if "fbq" in script_content:
                 if "Meta Pixel" not in self.tracking_scripts:
                     self.tracking_scripts.append("Meta Pixel (inline)")
-            # Check for inline Yandex Metrica
             if "metrika" in script_content.lower() and "wa" in script_content:
                 if not self._yandex_metrics:
                     self._yandex_metrics.append({"name": "Yandex Metrica (inline)", "counter_id": "inline"})
-            # Check for JSON-LD schema
             if self._script_type == "application/ld+json":
                 try:
                     schema = json.loads(script_content)
@@ -269,17 +309,16 @@ class MarketingPageParser(HTMLParser):
         if self._in_title or self._in_heading or self._in_a or self._in_button or self._in_script:
             self._current_text += data
         self._text_content.append(data)
+        self._all_text_for_matching += data
 
     def get_full_text(self):
         return " ".join(self._text_content)
 
     def get_results(self):
         """Compile all findings into a structured result."""
-        # Count images without alt text
         images_without_alt = sum(1 for img in self.images if not img.get("has_alt") or not img.get("alt"))
         images_with_lazy = sum(1 for img in self.images if img.get("loading") == "lazy")
 
-        # Analyze heading hierarchy
         heading_issues = []
         if not self.headings["h1"]:
             heading_issues.append("Missing H1 tag")
@@ -288,32 +327,45 @@ class MarketingPageParser(HTMLParser):
         if self.headings["h3"] and not self.headings["h2"]:
             heading_issues.append("H3 used without H2 (skipped level)")
 
-        # Unique tracking tools
         tracking = list(set(self.tracking_scripts))
-
-        # Full text for word count
         full_text = self.get_full_text()
         word_count = len(full_text.split())
 
-        # Check if page uses HTTPS
         page_uses_https = self._has_https or self._canonical.lower().startswith("https")
+
+        # Deduplicate commercial markers
+        for key in self._commercial_markers:
+            self._commercial_markers[key] = list(set(self._commercial_markers[key]))
+
+        # Check robots meta for noindex
+        has_noindex = "noindex" in self._robots_meta.lower() if self._robots_meta else False
+
+        # Check if canonical points to self
+        parsed_url = urlparse(self._canonical) if self._canonical else None
+        canonical_is_self = False
+        if parsed_url and parsed_url.path:
+            canonical_is_self = parsed_url.path.rstrip('/') == parsed_url.path.rstrip('/')
 
         return {
             "seo": {
                 "title": self.title,
                 "title_length": len(self.title),
-                "title_ok": 30 <= len(self.title) <= 60,
+                "title_ok": 30 <= len(self.title) <= 70,
+                "title_different_from_h1": self.title != (self.headings["h1"][0] if self.headings["h1"] else ""),
                 "meta_description": self.meta_description,
                 "meta_description_length": len(self.meta_description),
-                "meta_description_ok": 120 <= len(self.meta_description) <= 160,
+                "meta_description_ok": 50 <= len(self.meta_description) <= 155,
                 "canonical": self._canonical,
+                "canonical_points_to_self": canonical_is_self,
                 "robots_meta": self._robots_meta,
+                "has_noindex": has_noindex,
                 "has_viewport": self._has_viewport,
                 "og_tags": self.og_tags,
                 "headings": {k: v for k, v in self.headings.items() if v},
                 "heading_issues": heading_issues,
                 "images_total": len(self.images),
                 "images_without_alt": images_without_alt,
+                "images_with_alt": len(self.images) - images_without_alt,
                 "images_with_lazy_loading": images_with_lazy
             },
             "yandex": {
@@ -322,6 +374,13 @@ class MarketingPageParser(HTMLParser):
                 "yml_feed": self._yml_feed,
                 "yandex_metrics_installed": len(self._yandex_metrics) > 0,
                 "yandex_metrics": self._yandex_metrics
+            },
+            "commercial": {
+                "markers_found": self._commercial_markers,
+                "phones_count": len(self._commercial_markers["phones"]),
+                "emails_count": len(self._commercial_markers["emails"]),
+                "addresses_count": len(self._commercial_markers["addresses"]),
+                "inn_ogrn_count": len(self._commercial_markers["inn_ogrn"])
             },
             "content": {
                 "word_count": word_count,
@@ -408,120 +467,221 @@ def fetch_sitemap(url):
 
 def calculate_google_score(page_results):
     """
-    Calculate Google SEO Score (0-10 scale)
-    Based on standard on-page SEO factors.
+    Calculate Google SEO Score (0-20 scale)
+    Based on 8 factors, sum = 20.
+
+    Factor                 Max   Description
+    ─────────────────────────────────────────────────
+    Indexability           4    noindex check, canonical self-reference
+    Title Tag             3    presence + length 30-70 + different from H1
+    H1 Tag                3    presence + strictly 1 on page
+    Schema.org / JSON-LD  3    presence of markup
+    Meta Description      2    presence + length up to 155
+    Mobile Viewport       2    <meta name="viewport"...>
+    Images Alt            2    ratio of img with alt to total
+    HTTPS                 1    protocol check
     """
-    score = 10
     seo = page_results["seo"]
+    tracking = page_results["tracking"]
 
-    if not seo["title"]:
-        score -= 3
-    elif not seo["title_ok"]:
-        score -= 1
+    # Factor 1: Indexability (4 points max)
+    indexability_score = 0
+    if seo["has_noindex"]:
+        indexability_score = 0
+    elif not seo["canonical"]:
+        indexability_score = 2
+    elif not seo["canonical_points_to_self"]:
+        indexability_score = 1
+    else:
+        indexability_score = 4
 
-    if not seo["meta_description"]:
-        score -= 3
-    elif not seo["meta_description_ok"]:
-        score -= 1
+    # Factor 2: Title Tag (3 points max)
+    title_score = 0
+    if seo["title"]:
+        if seo["title_ok"]:
+            if seo.get("title_different_from_h1", True):
+                title_score = 3
+            else:
+                title_score = 2
+        else:
+            title_score = 1
+    else:
+        title_score = 0
 
-    if not seo["headings"].get("h1"):
-        score -= 2
+    # Factor 3: H1 Tag (3 points max)
+    h1_score = 0
+    h1_list = seo["headings"].get("h1", [])
+    if not h1_list:
+        h1_score = 0
+    elif len(h1_list) == 1:
+        h1_score = 3
+    else:
+        h1_score = 1
 
-    if seo["images_without_alt"] > 0:
-        score -= min(2, seo["images_without_alt"])
+    # Factor 4: Schema.org / JSON-LD (3 points max)
+    schema_score = 0
+    if tracking["schema_count"] > 0:
+        schema_score = 3
+    else:
+        schema_score = 0
 
-    if seo["heading_issues"]:
-        score -= 1
+    # Factor 5: Meta Description (2 points max)
+    desc_score = 0
+    if seo["meta_description"]:
+        if seo["meta_description_ok"]:
+            desc_score = 2
+        else:
+            desc_score = 1
+    else:
+        desc_score = 0
 
-    if not seo["has_viewport"]:
-        score -= 1
+    # Factor 6: Mobile Viewport (2 points max)
+    viewport_score = 2 if seo["has_viewport"] else 0
 
-    return max(0, score)
+    # Factor 7: Images Alt (2 points max)
+    images_score = 0
+    total_images = seo["images_total"]
+    if total_images > 0:
+        images_with_alt = seo["images_with_alt"]
+        ratio = images_with_alt / total_images
+        if ratio >= 0.8:
+            images_score = 2
+        elif ratio >= 0.5:
+            images_score = 1
+        else:
+            images_score = 0
+    else:
+        images_score = 2
+
+    # Factor 8: HTTPS (1 point max)
+    https_score = 1 if page_results["technical"]["uses_https"] else 0
+
+    total = indexability_score + title_score + h1_score + schema_score + desc_score + viewport_score + images_score + https_score
+
+    return {
+        "score": total,
+        "max": 20,
+        "breakdown": {
+            "indexability": {"score": indexability_score, "max": 4, "current": "noindex" if seo["has_noindex"] else ("missing" if not seo["canonical"] else ("ok" if seo["canonical_points_to_self"] else "points elsewhere"))},
+            "title": {"score": title_score, "max": 3, "current": f'"{seo["title"]}" ({seo["title_length"]} chars)' if seo["title"] else "missing"},
+            "h1": {"score": h1_score, "max": 3, "current": f'{len(h1_list)} H1 found' if h1_list else "missing"},
+            "schema": {"score": schema_score, "max": 3, "current": f'{tracking["schema_count"]} schema(s) found'},
+            "meta_description": {"score": desc_score, "max": 2, "current": f'"{seo["meta_description"][:50]}..." ({seo["meta_description_length"]} chars)' if seo["meta_description"] else "missing"},
+            "viewport": {"score": viewport_score, "max": 2, "current": "present" if seo["has_viewport"] else "missing"},
+            "images_alt": {"score": images_score, "max": 2, "current": f'{seo["images_with_alt"]}/{total_images} with alt'},
+            "https": {"score": https_score, "max": 1, "current": "HTTPS" if page_results["technical"]["uses_https"] else "HTTP"}
+        }
+    }
 
 
 def calculate_yandex_score(page_results):
     """
-    Calculate Yandex SEO Score (0-10 scale)
-    Based on Yandex-specific ranking factors.
+    Calculate Yandex SEO Score (0-20 scale)
+    Based on 8 factors, sum = 20.
 
-    Scoring:
-    - Title Tag: -2 if missing/poor
-    - Meta Description: -0.5 if missing/poor
-    - Heading hierarchy: -1 if issues
-    - Images without alt: -0.5
-    - URL not human-readable: -1
-    - No internal links: -1
-    - No Yandex tools (Metrica + Verification): -1
-    - No Turbo pages: -1
-    - No Schema.org: -1
-    - No HTTPS: -1
-
-    Total: 10 points max
+    Factor                    Max   Description
+    ─────────────────────────────────────────────────
+    Commercial markers        4    Phones, emails, INN/OGRN, addresses via Regex
+    Title Tag                 3    presence + length
+    H1 Tag                    3    presence + uniqueness
+    Indexability              3    noindex + canonical
+    Micro markup (OG/Schema)  3    og: tags + Schema
+    Counters (Metrica/Webmaster) 2  mc.yandex.ru, yandex-verification
+    Meta Description          1    presence (low weight)
+    HTTPS                     1    protocol
     """
-    score = 10
     seo = page_results["seo"]
     yandex = page_results["yandex"]
-    tech = page_results["technical"]
+    commercial = page_results["commercial"]
+    tracking = page_results["tracking"]
 
-    # Title Tag
-    if not seo["title"]:
-        score -= 2
-    elif not seo["title_ok"]:
-        score -= 0.5
+    # Factor 1: Commercial markers (4 points max)
+    commercial_score = 0
+    marker_count = commercial["phones_count"] + commercial["emails_count"] + commercial["addresses_count"] + commercial["inn_ogrn_count"]
+    if marker_count >= 4:
+        commercial_score = 4
+    elif marker_count >= 2:
+        commercial_score = 2
+    elif marker_count >= 1:
+        commercial_score = 1
 
-    # Meta Description
-    if not seo["meta_description"]:
-        score -= 0.5
-    elif not seo["meta_description_ok"]:
-        score -= 0.25
-
-    # Heading hierarchy
-    if not seo["headings"].get("h1"):
-        score -= 1
-    elif seo["heading_issues"]:
-        score -= 0.5
-
-    # Images without alt
-    if seo["images_without_alt"] > 0:
-        score -= min(0.5, seo["images_without_alt"] * 0.25)
-
-    # URL not human-readable (check for Cyrillic, parameters)
-    canonical_url = seo.get("canonical", "")
-    if canonical_url:
-        # Check for Cyrillic characters
-        if re.search(r'[\u0400-\u04FF]', canonical_url):
-            score -= 0.5
-        # Check for excessive parameters
-        if "?" in canonical_url and canonical_url.count("&") > 2:
-            score -= 0.5
+    # Factor 2: Title Tag (3 points max)
+    title_score = 0
+    if seo["title"]:
+        if seo["title_ok"]:
+            title_score = 3
+        elif 10 <= seo["title_length"] <= 80:
+            title_score = 2
+        else:
+            title_score = 1
     else:
-        score -= 0.5
+        title_score = 0
 
-    # Internal links
-    if tech["internal_links"] == 0:
-        score -= 1
+    # Factor 3: H1 Tag (3 points max)
+    h1_score = 0
+    h1_list = seo["headings"].get("h1", [])
+    if not h1_list:
+        h1_score = 0
+    elif len(h1_list) == 1:
+        h1_score = 3
+    else:
+        h1_score = 1
 
-    # Yandex tools (Metrica + Webmaster verification)
+    # Factor 4: Indexability (3 points max)
+    indexability_score = 0
+    if seo["has_noindex"]:
+        indexability_score = 0
+    elif not seo["canonical"]:
+        indexability_score = 1
+    elif not seo["canonical_points_to_self"]:
+        indexability_score = 1
+    else:
+        indexability_score = 3
+
+    # Factor 5: Micro markup (OG + Schema) (3 points max)
+    markup_score = 0
+    og_count = len(seo["og_tags"])
+    schema_count = tracking["schema_count"]
+    if og_count >= 3 and schema_count > 0:
+        markup_score = 3
+    elif og_count >= 1 or schema_count > 0:
+        markup_score = 2
+
+    # Factor 6: Yandex counters (2 points max)
+    counters_score = 0
     has_metrica = yandex["yandex_metrics_installed"]
     has_verification = bool(yandex["yandex_verification"])
-    if not has_metrica and not has_verification:
-        score -= 1
-    elif not has_metrica or not has_verification:
-        score -= 0.5
+    if has_metrica and has_verification:
+        counters_score = 2
+    elif has_metrica or has_verification:
+        counters_score = 1
 
-    # Turbo pages
-    if not yandex["has_turbo_pages"]:
-        score -= 1
+    # Factor 7: Meta Description (1 point max)
+    desc_score = 1 if seo["meta_description"] else 0
 
-    # Schema.org
-    if page_results["tracking"]["schema_count"] == 0:
-        score -= 1
+    # Factor 8: HTTPS (1 point max)
+    https_score = 1 if page_results["technical"]["uses_https"] else 0
 
-    # HTTPS
-    if not tech.get("uses_https", False):
-        score -= 1
+    total = commercial_score + title_score + h1_score + indexability_score + markup_score + counters_score + desc_score + https_score
 
-    return max(0, score)
+    return {
+        "score": total,
+        "max": 20,
+        "breakdown": {
+            "commercial_markers": {
+                "score": commercial_score,
+                "max": 4,
+                "current": f'phones:{commercial["phones_count"]}, emails:{commercial["emails_count"]}, addrs:{commercial["addresses_count"]}, inn/ogrn:{commercial["inn_ogrn_count"]}'
+            },
+            "title": {"score": title_score, "max": 3, "current": f'"{seo["title"]}" ({seo["title_length"]} chars)' if seo["title"] else "missing"},
+            "h1": {"score": h1_score, "max": 3, "current": f'{len(h1_list)} H1 found' if h1_list else "missing"},
+            "indexability": {"score": indexability_score, "max": 3, "current": "noindex" if seo["has_noindex"] else ("missing" if not seo["canonical"] else "ok")},
+            "micro_markup": {"score": markup_score, "max": 3, "current": f'OG:{og_count}, Schema:{schema_count}'},
+            "counters": {"score": counters_score, "max": 2, "current": f'metrica:{"yes" if has_metrica else "no"}, verification:{"yes" if has_verification else "no"}'},
+            "meta_description": {"score": desc_score, "max": 1, "current": "present" if seo["meta_description"] else "missing"},
+            "https": {"score": https_score, "max": 1, "current": "HTTPS" if page_results["technical"]["uses_https"] else "HTTP"}
+        }
+    }
 
 
 def calculate_combined_score(google_score, yandex_score, google_weight=0.30, yandex_weight=0.70):
@@ -534,7 +694,7 @@ def calculate_combined_score(google_score, yandex_score, google_weight=0.30, yan
 
 def analyze(url):
     """Run full marketing analysis on a URL."""
-    results = {"url": url, "status": "success"}
+    results = {"url": url, "status": "success", "timestamp": datetime.now().isoformat()}
 
     html = fetch_page(url)
     if not html:
@@ -548,7 +708,6 @@ def analyze(url):
 
     page_results = parser.get_results()
 
-    # Count internal vs external links
     parsed_url = urlparse(url)
     domain = parsed_url.netloc
     internal = 0
@@ -562,57 +721,25 @@ def analyze(url):
     page_results["technical"]["internal_links"] = internal
     page_results["technical"]["external_links"] = external
 
-    # Check robots.txt and sitemap
     page_results["robots"] = fetch_robots_txt(url)
     page_results["sitemap"] = fetch_sitemap(url)
 
-    # Generate marketing scores
     scores = {}
 
-    # SEO Scores (Google + Yandex)
-    scores["google_seo"] = calculate_google_score(page_results)
-    scores["yandex_seo"] = calculate_yandex_score(page_results)
+    google_result = calculate_google_score(page_results)
+    yandex_result = calculate_yandex_score(page_results)
+
+    scores["google_seo"] = google_result["score"]
+    scores["google_seo_max"] = google_result["max"]
+    scores["google_seo_breakdown"] = google_result["breakdown"]
+
+    scores["yandex_seo"] = yandex_result["score"]
+    scores["yandex_seo_max"] = yandex_result["max"]
+    scores["yandex_seo_breakdown"] = yandex_result["breakdown"]
+
     scores["seo_combined"] = calculate_combined_score(scores["google_seo"], scores["yandex_seo"])
 
-    # CTA Score
-    cta_score = 5
-    conv = page_results["conversion"]
-    if conv["cta_count"] == 0:
-        cta_score = 1
-    elif conv["cta_count"] >= 2:
-        cta_score = 7
-    if conv["cta_count"] >= 4:
-        cta_score = 8
-    value_ctas = [c for c in conv["ctas"] if len(c.get("text", "")) > 10]
-    if value_ctas:
-        cta_score = min(10, cta_score + 1)
-    scores["cta"] = cta_score
-
-    # Trust Score
-    trust_score = 5
-    if page_results["trust"]["social_link_count"] >= 3:
-        trust_score += 2
-    elif page_results["trust"]["social_link_count"] >= 1:
-        trust_score += 1
-    if page_results["tracking"]["schema_count"] > 0:
-        trust_score += 1
-    scores["trust"] = min(10, trust_score)
-
-    # Tracking Score
-    track_score = 3
-    if page_results["tracking"]["tools_count"] >= 3:
-        track_score = 9
-    elif page_results["tracking"]["tools_count"] >= 2:
-        track_score = 7
-    elif page_results["tracking"]["tools_count"] >= 1:
-        track_score = 5
-    scores["tracking"] = track_score
-
     page_results["scores"] = scores
-
-    # Overall score (average of all scores except combined)
-    main_scores = [scores["google_seo"], scores["yandex_seo"], scores["cta"], scores["trust"], scores["tracking"]]
-    page_results["overall_score"] = round(sum(main_scores) / len(main_scores), 1)
 
     results["analysis"] = page_results
     return results
@@ -622,8 +749,8 @@ def main():
     if len(sys.argv) < 2:
         print(json.dumps({
             "usage": "python3 analyze_page.py <url>",
-            "example": "python3 analyze_page.py https://calendly.com",
-            "description": "Analyzes a webpage for marketing effectiveness (Google + Yandex SEO)"
+            "example": "python3 analyze_page.py https://comandos.ai",
+            "description": "Analyzes webpage for Google + Yandex SEO (0-20 scale)"
         }, indent=2))
         return
 
