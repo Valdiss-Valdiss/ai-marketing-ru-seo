@@ -73,9 +73,9 @@
         }
 
         .container {
-            max-width: 1280px;
+            max-width: 1600px;
             margin: 0 auto;
-            padding: 0 20px;
+            padding: 0 30px;
         }
 
         /* Header */
@@ -436,7 +436,7 @@
         }
 
         .services-accordion {
-            max-width: 900px;
+            max-width: 1400px;
             margin: 0 auto;
         }
 
@@ -522,7 +522,7 @@
         }
 
         .services-accordion-item.active .services-accordion-content {
-            max-height: 5000px;
+            max-height: 10000px;
         }
 
         .services-accordion-body {
@@ -534,15 +534,16 @@
         .table-scroll-wrapper {
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
-            margin-bottom: 0;
+            margin-bottom: 8px;
         }
 
-        .rotate-hint {
-            display: none;
+        .table-scroll-wrapper::after {
+            content: "Поверните экран для лучшего просмотра таблицы";
+            display: block;
             text-align: center;
             font-size: 11px;
             color: var(--tp-text-light);
-            padding: 12px 0 20px;
+            padding: 8px 0;
             font-style: italic;
         }
 
@@ -551,7 +552,7 @@
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
-            min-width: 500px;
+            min-width: 600px;
         }
 
         .check-table th {
@@ -564,14 +565,16 @@
             padding: 12px 15px;
             border-bottom: 2px solid #e0e0e0;
             background-color: var(--tp-bg);
-            white-space: nowrap;
+            white-space: normal;
+            word-wrap: break-word;
         }
 
         .check-table td {
             padding: 14px 15px;
             border-bottom: 1px solid #f0f0f0;
             font-size: 14px;
-            white-space: nowrap;
+            white-space: normal;
+            word-wrap: break-word;
         }
 
         .check-table tr:last-child td {
@@ -586,6 +589,7 @@
             font-family: monospace;
             font-weight: 700;
             text-align: center;
+            white-space: nowrap;
         }
 
         .score-cell.success { color: var(--success); }
@@ -596,18 +600,26 @@
             font-family: monospace;
             color: var(--tp-secondary);
             text-align: center;
+            white-space: nowrap;
         }
 
         .current-cell {
             font-family: monospace;
             color: var(--tp-secondary);
             font-size: 13px;
+            max-width: 300px;
+            word-wrap: break-word;
         }
 
         .status-cell {
             font-weight: 600;
             white-space: nowrap;
         }
+
+        /* Status classes for checklist */
+        .status-pass { color: var(--success); font-weight: 600; }
+        .status-fail { color: var(--danger); font-weight: 600; }
+        .status-warn { color: var(--warning); font-weight: 600; }
 
         /* Description under table */
         .calculation-description {
@@ -617,6 +629,60 @@
             padding: 15px 0;
             border-top: 1px dashed var(--tp-gray-2);
             margin-top: 10px;
+        }
+
+        /* Priority Items */
+        .priority-section {
+            margin-bottom: 25px;
+        }
+
+        .priority-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .priority-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            padding-left: 10px;
+        }
+
+        .priority-title.critical { color: var(--danger); }
+        .priority-title.high { color: var(--tp-accent); }
+        .priority-title.medium { color: var(--warning); }
+
+        .priority-item {
+            padding: 16px 20px;
+            margin-bottom: 10px;
+            background: var(--tp-white);
+            border-radius: var(--tp-radius);
+            border-left: 4px solid;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .priority-item.critical { border-color: var(--danger); }
+        .priority-item.high { border-color: var(--tp-accent); }
+        .priority-item.medium { border-color: var(--warning); }
+
+        .priority-item h4 {
+            margin: 0 0 8px;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--tp-primary);
+        }
+
+        .priority-item p {
+            margin: 0;
+            font-size: 13px;
+            color: var(--tp-text-light);
+        }
+
+        .priority-item code {
+            background: var(--tp-gray);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: var(--tp-accent);
         }
 
         /* CTA Section */
@@ -662,6 +728,17 @@
         }
 
         /* Responsive - Mobile Menu */
+        @media (max-width: 1200px) {
+            .container {
+                max-width: 100%;
+                padding: 0 20px;
+            }
+
+            .services-accordion {
+                max-width: 100%;
+            }
+        }
+
         @media (max-width: 991px) {
             .tp-menu-toggle {
                 display: flex !important;
@@ -733,24 +810,6 @@
             }
         }
 
-        @media (max-width: 400px) {
-            .tp-main-menu {
-                padding-right: 28vw;
-            }
-        }
-
-        @media (min-width: 400px) and (max-width: 600px) {
-            .tp-main-menu {
-                padding-right: 14vw;
-            }
-        }
-
-        @media (min-width: 600px) and (max-width: 1100px) {
-            .tp-main-menu {
-                padding-right: 0;
-            }
-        }
-
         @media (max-width: 767px) {
             .tp-hero {
                 padding: 100px 0 50px;
@@ -775,8 +834,16 @@
                 flex: 1;
             }
 
-            .rotate-hint {
+            .table-scroll-wrapper::after {
                 display: block;
+            }
+
+            .check-table {
+                font-size: 12px;
+            }
+
+            .check-table th, .check-table td {
+                padding: 10px 8px;
             }
         }
     </style>
@@ -827,7 +894,7 @@
                 <span class="tp-hero-subtitle">SEO-аудит</span>
                 <h1 class="tp-hero-title">comandos.ai</h1>
                 <p class="tp-hero-description">Комплексный анализ для Google и Яндекс</p>
-                <p class="tp-hero-date">06 05 2026, 17:45:28</p>
+                <p class="tp-hero-date">06 05 2026, 18:29:36</p>
             </div>
         </div>
     </section>
@@ -950,10 +1017,17 @@
                                             <td class="status-cell">❌ Не пройдено</td>
                                         </tr>
             
+                                        <tr class="total-row">
+                                            <td><strong>ИТОГО</strong></td>
+                                            <td class="score-cell danger"><strong>4</strong></td>
+                                            <td class="max-cell"><strong>20</strong></td>
+                                            <td class="current-cell">—</td>
+                                            <td class="status-cell"><strong>❌ Не пройдено</strong></td>
+                                        </tr>
+        
                                     </tbody>
                                 </table>
                             </div>
-                            <div class="rotate-hint">Поверните экран для лучшего просмотра таблицы</div>
                             <div class="calculation-description">
                                 <strong>Механизм расчёта:</strong> Google Score — это сумма баллов по 8 факторам (от 0 до Макс). Максимальный возможный балл = 20. Чем выше оценка, тем лучше сайт оптимизирован для Google. Критические факторы: Indexability (если страница закрыта от индексации, остальные факторы не имеют значения) и Schema.org (влияет на Rich Results).
                             </div>
@@ -1050,13 +1124,374 @@
                                             <td class="status-cell">❌ Не пройдено</td>
                                         </tr>
             
+                                        <tr class="total-row">
+                                            <td><strong>ИТОГО</strong></td>
+                                            <td class="score-cell danger"><strong>4</strong></td>
+                                            <td class="max-cell"><strong>20</strong></td>
+                                            <td class="current-cell">—</td>
+                                            <td class="status-cell"><strong>❌ Не пройдено</strong></td>
+                                        </tr>
+        
                                     </tbody>
                                 </table>
                             </div>
-                            <div class="rotate-hint">Поверните экран для лучшего просмотра таблицы</div>
                             <div class="calculation-description">
                                 <strong>Механизм расчёта:</strong> Яндекс Score — это сумма баллов по 8 факторам (от 0 до Макс). Максимальный возможный балл = 20. Для Яндекс критичны коммерческие маркеры (телефоны, email, адреса, ИНН/ОГРН) — это фундаментальный сигнал качества бизнеса. Также важны счётчики Метрики и верификация в Вебмастере.
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Чеклист On-Page SEO -->
+                <div class="services-accordion-item">
+                    <div class="services-accordion-header">
+                        <span class="services-accordion-number">&nbsp;03</span>
+                        <div class="services-accordion-title">
+                            <i class="fa-solid fa-clipboard-check"></i>
+                            <h3>Чеклист On-Page SEO</h3>
+                        </div>
+                        <span class="services-accordion-toggle"><i class="fas fa-plus"></i></span>
+                    </div>
+                    <div class="services-accordion-content">
+                        <div class="services-accordion-body">
+<h4 style="margin: 0 0 15px; color: var(--tp-primary);">Title Tag</h4>
+                            <div class="table-scroll-wrapper">
+                                <table class="check-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Параметр</th>
+                                            <th>Текущее</th>
+                                            <th>Рекомендуемое</th>
+                                            <th>Статус</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Текст</td>
+                                            <td class="current-cell">Главная</td>
+                                            <td>AI-автоматизация бизнеса | Команда AI-ассистентов 24/7 | Commandos AI</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Длина</td>
+                                            <td class="current-cell">7 симв.</td>
+                                            <td>50-60 симв.</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Ключевое слово</td>
+                                            <td class="current-cell">—</td>
+                                            <td>"AI автоматизация"</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Бренд в конце</td>
+                                            <td class="current-cell">—</td>
+                                            <td>Commandos AI</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+    <h4 style="margin: 25px 0 15px; color: var(--tp-primary);">Meta Description</h4>
+                            <div class="table-scroll-wrapper">
+                                <table class="check-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Параметр</th>
+                                            <th>Текущее</th>
+                                            <th>Рекомендуемое</th>
+                                            <th>Статус</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Текст</td>
+                                            <td class="current-cell">(пусто)</td>
+                                            <td>Внедряем AI-команду для вашего бизнеса: маркетинг, продажи, поддержка 24/7. Экономия до 68% на ФОТ. Автоматизация за 7 дней.</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Длина</td>
+                                            <td class="current-cell">0 симв.</td>
+                                            <td>140-160 симв.</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                        <tr>
+                                            <td>CTA</td>
+                                            <td class="current-cell">—</td>
+                                            <td>"Оставьте заявку!"</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+    <h4 style="margin: 25px 0 15px; color: var(--tp-primary);">Иерархия заголовков</h4>
+                            <div class="table-scroll-wrapper">
+                                <table class="check-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Элемент</th>
+                                            <th>Текущее</th>
+                                            <th>Рекомендуемое</th>
+                                            <th>Статус</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>H1</td>
+                                            <td class="current-cell">(отсутствует)</td>
+                                            <td>1 заголовок с ключевым словом</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                        <tr>
+                                            <td>H2</td>
+                                            <td class="current-cell">(не найдены)</td>
+                                            <td>Логическая структура под H1</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Всего заголовков</td>
+                                            <td class="current-cell">0</td>
+                                            <td>≥3-5 для структуры</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+    <h4 style="margin: 25px 0 15px; color: var(--tp-primary);">Оптимизация изображений</h4>
+                            <div class="table-scroll-wrapper">
+                                <table class="check-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Параметр</th>
+                                            <th>Текущее</th>
+                                            <th>Рекомендуемое</th>
+                                            <th>Статус</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Всего изображений</td>
+                                            <td class="current-cell">14</td>
+                                            <td>—</td>
+                                            <td class="status-warn">⚠️</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Без alt</td>
+                                            <td class="current-cell">14 (100%)</td>
+                                            <td>0</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                        <tr>
+                                            <td>WebP формат</td>
+                                            <td class="current-cell">Не используется</td>
+                                            <td>Да</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Lazy loading</td>
+                                            <td class="current-cell">0</td>
+                                            <td>Для внеэкранных</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+    <h4 style="margin: 25px 0 15px; color: var(--tp-primary);">Технические факторы</h4>
+                            <div class="table-scroll-wrapper">
+                                <table class="check-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Параметр</th>
+                                            <th>Текущее</th>
+                                            <th>Рекомендуемое</th>
+                                            <th>Статус</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>HTTPS</td>
+                                            <td class="current-cell">HTTP</td>
+                                            <td>Обязательно для SEO</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Canonical</td>
+                                            <td class="current-cell">http://comandos.ai</td>
+                                            <td>Указывает на себя</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Viewport</td>
+                                            <td class="current-cell">present</td>
+                                            <td>Для мобильных</td>
+                                            <td class="status-pass">✅</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Schema.org</td>
+                                            <td class="current-cell">0 схем</td>
+                                            <td>Organization, FAQPage</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Яндекс.Метрика</td>
+                                            <td class="current-cell">нет</td>
+                                            <td>Обязательно для Яндекс</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Верификация Яндекс</td>
+                                            <td class="current-cell">нет</td>
+                                            <td>Через Вебмастер</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+    
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Приоритизированные рекомендации -->
+                <div class="services-accordion-item">
+                    <div class="services-accordion-header">
+                        <span class="services-accordion-number">&nbsp;04</span>
+                        <div class="services-accordion-title">
+                            <i class="fa-solid fa-list-check"></i>
+                            <h3>Приоритизированные рекомендации</h3>
+                        </div>
+                        <span class="services-accordion-toggle"><i class="fas fa-plus"></i></span>
+                    </div>
+                    <div class="services-accordion-content">
+                        <div class="services-accordion-body">
+
+                            <div class="priority-section">
+                                <h4 class="priority-title critical">Критические (исправить немедленно)</h4>
+                                
+                                <div class="priority-item critical">
+                                    <h4>Добавить H1 с ключевым словом</h4>
+                                    <p>Ровно один H1 на странице с основным ключевым словом.</p>
+                                    <p style="margin-top: 8px; color: var(--tp-secondary);">Текущее: missing (0/3)</p>
+                                    <p style="margin-top: 8px;"><code><h1>AI-автоматизация бизнеса</h1></code></p>
+                                </div>
+            
+                                <div class="priority-item critical">
+                                    <h4>Добавить Schema.org разметку</h4>
+                                    <p>Organization, FAQPage, Service для усиления E-E-A-T.</p>
+                                    <p style="margin-top: 8px; color: var(--tp-secondary);">Текущее: 0 schema(s) found (0/3)</p>
+                                    
+                                </div>
+            
+                                <div class="priority-item critical">
+                                    <h4>Добавить коммерческие маркеры</h4>
+                                    <p>Телефоны, email, адреса, ИНН/ОГРН для Яндекс.</p>
+                                    <p style="margin-top: 8px; color: var(--tp-secondary);">Текущее: phones:0, emails:0, addrs:0, inn/ogrn:0 (0/4)</p>
+                                    
+                                </div>
+            
+                                <div class="priority-item critical">
+                                    <h4>Добавить H1 с ключевым словом</h4>
+                                    <p>Ровно один H1 на странице с основным ключевым словом.</p>
+                                    <p style="margin-top: 8px; color: var(--tp-secondary);">Текущее: missing (0/3)</p>
+                                    <p style="margin-top: 8px;"><code><h1>AI-автоматизация бизнеса</h1></code></p>
+                                </div>
+            
+                            </div>
+
+                            <div class="priority-section">
+                                <h4 class="priority-title high">Высокий приоритет (этот месяц)</h4>
+                                
+                                <div class="priority-item high">
+                                    <h4>Исправить Indexability</h4>
+                                    <p>Проверить canonical и robots.txt.</p>
+                                    <p style="margin-top: 8px; color: var(--tp-secondary);">Текущее: points elsewhere (1/4)</p>
+                                    
+                                </div>
+            
+                                <div class="priority-item high">
+                                    <h4>Улучшить Title Tag</h4>
+                                    <p>Минимум 50-60 символов с ключевыми словами и названием бренда.</p>
+                                    <p style="margin-top: 8px; color: var(--tp-secondary);">Текущее: &quot;Главная&quot; (7 chars) (1/3)</p>
+                                    <p style="margin-top: 8px;"><code><title>AI-автоматизация | Команда AI 24/7 | Brand</title></code></p>
+                                </div>
+            
+                                <div class="priority-item high">
+                                    <h4>Добавить Meta Description</h4>
+                                    <p>140-160 символов с CTA и ключевыми словами.</p>
+                                    <p style="margin-top: 8px; color: var(--tp-secondary);">Текущее: missing (0/2)</p>
+                                    <p style="margin-top: 8px;"><code><meta name="description" content="..."></code></p>
+                                </div>
+            
+                                <div class="priority-item high">
+                                    <h4>Alt тексты для изображений</h4>
+                                    <p>Добавить описательные alt к изображениям для Яндекс.Картинки.</p>
+                                    <p style="margin-top: 8px; color: var(--tp-secondary);">Текущее: 0/14 with alt (0/2)</p>
+                                    <p style="margin-top: 8px;"><code><img alt="описание изображения"></code></p>
+                                </div>
+            
+                                <div class="priority-item high">
+                                    <h4>Установить HTTPS</h4>
+                                    <p>Перенаправить HTTP на HTTPS, обновить canonical. Без HTTPS сайт не получит высокие позиции в Яндекс.</p>
+                                    <p style="margin-top: 8px; color: var(--tp-secondary);">Текущее: HTTP (0/1)</p>
+                                    <p style="margin-top: 8px;"><code>301 redirect HTTP → HTTPS</code></p>
+                                </div>
+            
+                                <div class="priority-item high">
+                                    <h4>Улучшить Title Tag</h4>
+                                    <p>Минимум 50-60 символов с ключевыми словами и названием бренда.</p>
+                                    <p style="margin-top: 8px; color: var(--tp-secondary);">Текущее: &quot;Главная&quot; (7 chars) (1/3)</p>
+                                    <p style="margin-top: 8px;"><code><title>AI-автоматизация | Команда AI 24/7 | Brand</title></code></p>
+                                </div>
+            
+                                <div class="priority-item high">
+                                    <h4>Исправить Indexability</h4>
+                                    <p>Проверить canonical и robots.txt.</p>
+                                    <p style="margin-top: 8px; color: var(--tp-secondary);">Текущее: ok (1/3)</p>
+                                    
+                                </div>
+            
+                                <div class="priority-item high">
+                                    <h4>Установить Яндекс.Метрику</h4>
+                                    <p>Для анализа поведенческих факторов — критичных для Яндекс.</p>
+                                    <p style="margin-top: 8px; color: var(--tp-secondary);">Текущее: metrica:no, verification:no (0/2)</p>
+                                    
+                                </div>
+            
+                                <div class="priority-item high">
+                                    <h4>Добавить Meta Description</h4>
+                                    <p>140-160 символов с CTA и ключевыми словами.</p>
+                                    <p style="margin-top: 8px; color: var(--tp-secondary);">Текущее: missing (0/1)</p>
+                                    <p style="margin-top: 8px;"><code><meta name="description" content="..."></code></p>
+                                </div>
+            
+                                <div class="priority-item high">
+                                    <h4>Установить HTTPS</h4>
+                                    <p>Перенаправить HTTP на HTTPS, обновить canonical. Без HTTPS сайт не получит высокие позиции в Яндекс.</p>
+                                    <p style="margin-top: 8px; color: var(--tp-secondary);">Текущее: HTTP (0/1)</p>
+                                    <p style="margin-top: 8px;"><code>301 redirect HTTP → HTTPS</code></p>
+                                </div>
+            
+                            </div>
+
+                            <div class="priority-section">
+                                <h4 class="priority-title medium">Средний приоритет (этот квартал)</h4>
+                                
+                                <div class="priority-item medium">
+                                    <h4>Расширить микроразметку</h4>
+                                    <p>Добавить Schema.org помимо OG тегов.</p>
+                                    <p style="margin-top: 8px; color: var(--tp-secondary);">Текущее: OG:4, Schema:0 (2/3)</p>
+                                    
+                                </div>
+            
+                            </div>
+    
                         </div>
                     </div>
                 </div>

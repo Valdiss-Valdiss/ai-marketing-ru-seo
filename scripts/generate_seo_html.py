@@ -71,8 +71,8 @@ def format_current(current):
     if not current:
         return "—"
     current_str = str(current)
-    if len(current_str) > 60:
-        return current_str[:60] + "..."
+    if len(current_str) > 80:
+        return current_str[:80] + "..."
     return current_str
 
 
@@ -97,6 +97,438 @@ def get_timestamp_filename(url, prefix="SEO-AUDIT"):
     return f"{prefix}-{domain}-{timestamp}"
 
 
+def generate_checklist_section(analysis):
+    """Generate Section 3: On-Page SEO Checklist with subsections."""
+    seo = analysis.get("seo", {})
+    google_breakdown = analysis.get("scores", {}).get("google_seo_breakdown", {})
+    yandex_breakdown = analysis.get("scores", {}).get("yandex_seo_breakdown", {})
+
+    title = seo.get("title", "")
+    title_length = seo.get("title_length", 0)
+    meta_desc = seo.get("meta_description", "")
+    meta_desc_length = seo.get("meta_description_length", 0)
+    h1_list = analysis.get("content", {}).get("h1", [])
+    h2_list = analysis.get("content", {}).get("h2", [])
+    images_total = seo.get("images_total", 0)
+    images_without_alt = seo.get("images_without_alt", 0)
+    has_viewport = seo.get("has_viewport", False)
+    og_tags = seo.get("og_tags", {})
+    schema_count = analysis.get("tracking", {}).get("schema_count", 0)
+    uses_https = analysis.get("technical", {}).get("uses_https", False)
+    canonical = seo.get("canonical", "")
+    canonical_self = seo.get("canonical_points_to_self", False)
+    yandex_metrics = analysis.get("yandex", {}).get("yandex_metrics_installed", False)
+    yandex_verification = analysis.get("yandex", {}).get("yandex_verification", "")
+    has_turbo = analysis.get("yandex", {}).get("has_turbo_pages", False)
+
+    def get_status_class(score, max_val):
+        if max_val == 0:
+            return "status-fail"
+        ratio = score / max_val
+        if ratio >= 0.7:
+            return "status-pass"
+        elif ratio >= 0.4:
+            return "status-warn"
+        else:
+            return "status-fail"
+
+    def get_icon_for_check(status_class):
+        if status_class == "status-pass":
+            return "✅"
+        elif status_class == "status-warn":
+            return "⚠️"
+        else:
+            return "❌"
+
+    html = ""
+
+    title_score = google_breakdown.get("title", {}).get("score", 0)
+    title_max = google_breakdown.get("title", {}).get("max", 3)
+    title_status = get_status_class(title_score, title_max)
+    title_icon = get_icon_for_check(title_status)
+    title_recommended = "AI-автоматизация бизнеса | Команда AI-ассистентов 24/7 | Commandos AI"
+
+    html += f'''<h4 style="margin: 0 0 15px; color: var(--tp-primary);">Title Tag</h4>
+                            <div class="table-scroll-wrapper">
+                                <table class="check-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Параметр</th>
+                                            <th>Текущее</th>
+                                            <th>Рекомендуемое</th>
+                                            <th>Статус</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Текст</td>
+                                            <td class="current-cell">{escape_html(truncate(title, 60))}</td>
+                                            <td>{escape_html(title_recommended)}</td>
+                                            <td class="{title_status}">{title_icon}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Длина</td>
+                                            <td class="current-cell">{title_length} симв.</td>
+                                            <td>50-60 симв.</td>
+                                            <td class="{title_status}">{title_icon}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Ключевое слово</td>
+                                            <td class="current-cell">—</td>
+                                            <td>"AI автоматизация"</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Бренд в конце</td>
+                                            <td class="current-cell">—</td>
+                                            <td>Commandos AI</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+    '''
+
+    meta_score = google_breakdown.get("meta_description", {}).get("score", 0)
+    meta_max = google_breakdown.get("meta_description", {}).get("max", 2)
+    meta_status = get_status_class(meta_score, meta_max)
+    meta_icon = get_icon_for_check(meta_status)
+    meta_recommended = "Внедряем AI-команду для вашего бизнеса: маркетинг, продажи, поддержка 24/7. Экономия до 68% на ФОТ. Автоматизация за 7 дней."
+
+    html += f'''<h4 style="margin: 25px 0 15px; color: var(--tp-primary);">Meta Description</h4>
+                            <div class="table-scroll-wrapper">
+                                <table class="check-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Параметр</th>
+                                            <th>Текущее</th>
+                                            <th>Рекомендуемое</th>
+                                            <th>Статус</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Текст</td>
+                                            <td class="current-cell">{"(пусто)" if not meta_desc else escape_html(truncate(meta_desc, 60))}</td>
+                                            <td>{escape_html(meta_recommended)}</td>
+                                            <td class="{meta_status}">{meta_icon}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Длина</td>
+                                            <td class="current-cell">{meta_desc_length} симв.</td>
+                                            <td>140-160 симв.</td>
+                                            <td class="{meta_status}">{meta_icon}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>CTA</td>
+                                            <td class="current-cell">—</td>
+                                            <td>"Оставьте заявку!"</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+    '''
+
+    h1_score_g = google_breakdown.get("h1", {}).get("score", 0)
+    h1_max_g = google_breakdown.get("h1", {}).get("max", 3)
+    h1_status = get_status_class(h1_score_g, h1_max_g)
+    h1_icon = get_icon_for_check(h1_status)
+    h1_current = h1_list[0] if h1_list else "(отсутствует)"
+
+    html += f'''<h4 style="margin: 25px 0 15px; color: var(--tp-primary);">Иерархия заголовков</h4>
+                            <div class="table-scroll-wrapper">
+                                <table class="check-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Элемент</th>
+                                            <th>Текущее</th>
+                                            <th>Рекомендуемое</th>
+                                            <th>Статус</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>H1</td>
+                                            <td class="current-cell">{escape_html(truncate(h1_current, 60))}</td>
+                                            <td>1 заголовок с ключевым словом</td>
+                                            <td class="{h1_status}">{h1_icon}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>H2</td>
+                                            <td class="current-cell">{" найдено".join(map(str, [len(h2_list)])) if h2_list else "(не найдены)"}</td>
+                                            <td>Логическая структура под H1</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Всего заголовков</td>
+                                            <td class="current-cell">{len(h1_list) + len(h2_list)}</td>
+                                            <td>≥3-5 для структуры</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+    '''
+
+    img_score = google_breakdown.get("images_alt", {}).get("score", 0)
+    img_max = google_breakdown.get("images_alt", {}).get("max", 2)
+    img_status = get_status_class(img_score, img_max)
+    img_icon = get_icon_for_check(img_status)
+    img_without_alt_pct = int((images_without_alt / images_total * 100) if images_total > 0 else 0)
+
+    html += f'''<h4 style="margin: 25px 0 15px; color: var(--tp-primary);">Оптимизация изображений</h4>
+                            <div class="table-scroll-wrapper">
+                                <table class="check-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Параметр</th>
+                                            <th>Текущее</th>
+                                            <th>Рекомендуемое</th>
+                                            <th>Статус</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Всего изображений</td>
+                                            <td class="current-cell">{images_total}</td>
+                                            <td>—</td>
+                                            <td class="status-warn">⚠️</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Без alt</td>
+                                            <td class="current-cell">{images_without_alt} ({img_without_alt_pct}%)</td>
+                                            <td>0</td>
+                                            <td class="{img_status}">{img_icon}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>WebP формат</td>
+                                            <td class="current-cell">Не используется</td>
+                                            <td>Да</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Lazy loading</td>
+                                            <td class="current-cell">{seo.get("images_with_lazy_loading", 0)}</td>
+                                            <td>Для внеэкранных</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+    '''
+
+    https_score_g = google_breakdown.get("https", {}).get("score", 0)
+    https_max_g = google_breakdown.get("https", {}).get("max", 1)
+    https_status = get_status_class(https_score_g, https_max_g)
+    https_icon = get_icon_for_check(https_status)
+    https_current = "HTTPS" if uses_https else "HTTP"
+
+    html += f'''<h4 style="margin: 25px 0 15px; color: var(--tp-primary);">Технические факторы</h4>
+                            <div class="table-scroll-wrapper">
+                                <table class="check-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Параметр</th>
+                                            <th>Текущее</th>
+                                            <th>Рекомендуемое</th>
+                                            <th>Статус</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>HTTPS</td>
+                                            <td class="current-cell">{https_current}</td>
+                                            <td>Обязательно для SEO</td>
+                                            <td class="{https_status}">{https_icon}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Canonical</td>
+                                            <td class="current-cell">{escape_html(truncate(canonical, 50) if canonical else "(отсутствует)")}</td>
+                                            <td>Указывает на себя</td>
+                                            <td class="{"status-pass" if canonical_self else "status-fail"}">{"✅" if canonical_self else "❌"}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Viewport</td>
+                                            <td class="current-cell">{"present" if has_viewport else "отсутствует"}</td>
+                                            <td>Для мобильных</td>
+                                            <td class="{"status-pass" if has_viewport else "status-fail"}">{"✅" if has_viewport else "❌"}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Schema.org</td>
+                                            <td class="current-cell">{schema_count} схем</td>
+                                            <td>Organization, FAQPage</td>
+                                            <td class="status-fail">❌</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Яндекс.Метрика</td>
+                                            <td class="current-cell">{"установлена" if yandex_metrics else "нет"}</td>
+                                            <td>Обязательно для Яндекс</td>
+                                            <td class="{"status-pass" if yandex_metrics else "status-fail"}">{"✅" if yandex_metrics else "❌"}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Верификация Яндекс</td>
+                                            <td class="current-cell">{"да" if yandex_verification else "нет"}</td>
+                                            <td>Через Вебмастер</td>
+                                            <td class="{"status-pass" if yandex_verification else "status-fail"}">{"✅" if yandex_verification else "❌"}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+    '''
+
+    return html
+
+
+def generate_recommendations_section(google_breakdown, yandex_breakdown):
+    """Generate Section 4: Prioritized Recommendations."""
+    def get_recommendations():
+        critical = []
+        high = []
+        medium = []
+
+        all_factors = []
+        for name, data in google_breakdown.items():
+            all_factors.append(("Google", name, data))
+        for name, data in yandex_breakdown.items():
+            all_factors.append(("Яндекс", name, data))
+
+        for system, name, data in all_factors:
+            score = data.get("score", 0)
+            max_val = data.get("max", 1)
+            current = data.get("current", "—")
+            ratio = score / max_val if max_val > 0 else 0
+
+            if score == 0 and max_val >= 3:
+                critical.append((system, name, score, max_val, current))
+            elif score == 0 and max_val < 3:
+                high.append((system, name, score, max_val, current))
+            elif 0 < score < max_val and ratio < 0.5:
+                high.append((system, name, score, max_val, current))
+            elif 0 < score < max_val and ratio >= 0.5:
+                medium.append((system, name, score, max_val, current))
+
+        return critical, high, medium
+
+    critical, high, medium = get_recommendations()
+
+    recommendations_templates = {
+        "https": {
+            "title": "Установить HTTPS",
+            "desc": "Перенаправить HTTP на HTTPS, обновить canonical. Без HTTPS сайт не получит высокие позиции в Яндекс.",
+            "code": "301 redirect HTTP → HTTPS"
+        },
+        "title": {
+            "title": "Улучшить Title Tag",
+            "desc": "Минимум 50-60 символов с ключевыми словами и названием бренда.",
+            "code": '<title>AI-автоматизация | Команда AI 24/7 | Brand</title>'
+        },
+        "h1": {
+            "title": "Добавить H1 с ключевым словом",
+            "desc": "Ровно один H1 на странице с основным ключевым словом.",
+            "code": '<h1>AI-автоматизация бизнеса</h1>'
+        },
+        "schema": {
+            "title": "Добавить Schema.org разметку",
+            "desc": "Organization, FAQPage, Service для усиления E-E-A-T.",
+            "code": None
+        },
+        "meta_description": {
+            "title": "Добавить Meta Description",
+            "desc": "140-160 символов с CTA и ключевыми словами.",
+            "code": '<meta name="description" content="...">'
+        },
+        "images_alt": {
+            "title": "Alt тексты для изображений",
+            "desc": "Добавить описательные alt к изображениям для Яндекс.Картинки.",
+            "code": '<img alt="описание изображения">'
+        },
+        "commercial_markers": {
+            "title": "Добавить коммерческие маркеры",
+            "desc": "Телефоны, email, адреса, ИНН/ОГРН для Яндекс.",
+            "code": None
+        },
+        "counters": {
+            "title": "Установить Яндекс.Метрику",
+            "desc": "Для анализа поведенческих факторов — критичных для Яндекс.",
+            "code": None
+        },
+        "indexability": {
+            "title": "Исправить Indexability",
+            "desc": "Проверить canonical и robots.txt.",
+            "code": None
+        },
+        "micro_markup": {
+            "title": "Расширить микроразметку",
+            "desc": "Добавить Schema.org помимо OG тегов.",
+            "code": None
+        },
+        "viewport": {
+            "title": "Проверить viewport",
+            "desc": "Убедиться в наличии meta viewport для мобильных.",
+            "code": '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        }
+    }
+
+    def build_priority_items(items, priority_class):
+        html = ""
+        for system, name, score, max_val, current in items:
+            template_key = name.lower().replace(" ", "_").replace("/", "_")
+            template = recommendations_templates.get(template_key, {
+                "title": f"Исправить {name}",
+                "desc": f"Проблема: {current}",
+                "code": None
+            })
+
+            code_html = f'<p style="margin-top: 8px;"><code>{template["code"]}</code></p>' if template["code"] else ""
+            html += f'''
+                                <div class="priority-item {priority_class}">
+                                    <h4>{escape_html(template["title"])}</h4>
+                                    <p>{escape_html(template["desc"])}</p>
+                                    <p style="margin-top: 8px; color: var(--tp-secondary);">Текущее: {escape_html(truncate(str(current), 60))} ({score}/{max_val})</p>
+                                    {code_html}
+                                </div>
+            '''
+        return html
+
+    critical_html = build_priority_items(critical, "critical")
+    high_html = build_priority_items(high, "high")
+    medium_html = build_priority_items(medium, "medium")
+
+    if not critical_html and not high_html and not medium_html:
+        no_recs = '''
+                                <div class="priority-item" style="border-color: var(--success);">
+                                    <h4 style="color: var(--success);">Всё в порядке!</h4>
+                                    <p>Критических проблем не обнаружено. Продолжайте мониторить SEO-метрики.</p>
+                                </div>
+        '''
+        critical_html = no_recs
+
+    html = f'''
+                            <div class="priority-section">
+                                <h4 class="priority-title critical">Критические (исправить немедленно)</h4>
+                                {critical_html}
+                            </div>
+
+                            <div class="priority-section">
+                                <h4 class="priority-title high">Высокий приоритет (этот месяц)</h4>
+                                {high_html}
+                            </div>
+
+                            <div class="priority-section">
+                                <h4 class="priority-title medium">Средний приоритет (этот квартал)</h4>
+                                {medium_html}
+                            </div>
+    '''
+
+    return html
+
+
 def generate_html_report(url, analysis):
     """Generate complete HTML report."""
     scores = analysis.get("scores", {})
@@ -116,8 +548,6 @@ def generate_html_report(url, analysis):
     domain = parsed.netloc
 
     google_formula = f"{google_score}×0.30 + {yandex_score}×0.70 = {combined_score}"
-    yandex_penalty = yandex_max - yandex_score
-    google_penalty = google_max - google_score
 
     google_items = [
         ("Indexability (Robots/Canonical)", google_breakdown.get("indexability", {})),
@@ -141,7 +571,7 @@ def generate_html_report(url, analysis):
         ("HTTPS", yandex_breakdown.get("https", {})),
     ]
 
-    def build_table_rows(items):
+    def build_table_rows(items, total_score, total_max):
         rows = ""
         for name, data in items:
             score = data.get("score", 0)
@@ -150,7 +580,7 @@ def generate_html_report(url, analysis):
             icon, status_text = get_status_icon_and_text(score, max_val)
             score_color_class = get_score_color(score, max_val)
 
-            current_formatted = escape_html(truncate(format_current(current), 50))
+            current_formatted = escape_html(format_current(current))
             name_escaped = escape_html(name)
 
             rows += f"""
@@ -162,10 +592,25 @@ def generate_html_report(url, analysis):
                                             <td class="status-cell">{icon} {status_text}</td>
                                         </tr>
             """
+        # Add TOTAL row
+        total_icon, total_status = get_status_icon_and_text(total_score, total_max)
+        total_color_class = get_score_color(total_score, total_max)
+        rows += f"""
+                                        <tr class="total-row">
+                                            <td><strong>ИТОГО</strong></td>
+                                            <td class="score-cell {total_color_class}"><strong>{total_score}</strong></td>
+                                            <td class="max-cell"><strong>{total_max}</strong></td>
+                                            <td class="current-cell">—</td>
+                                            <td class="status-cell"><strong>{total_icon} {total_status}</strong></td>
+                                        </tr>
+        """
         return rows
 
-    google_rows = build_table_rows(google_items)
-    yandex_rows = build_table_rows(yandex_items)
+    google_rows = build_table_rows(google_items, google_score, google_max)
+    yandex_rows = build_table_rows(yandex_items, yandex_score, yandex_max)
+
+    checklist_section = generate_checklist_section(analysis)
+    recommendations_section = generate_recommendations_section(google_breakdown, yandex_breakdown)
 
     html = f"""<!DOCTYPE html>
 <html lang="ru">
@@ -242,9 +687,9 @@ def generate_html_report(url, analysis):
         }}
 
         .container {{
-            max-width: 1280px;
+            max-width: 1600px;
             margin: 0 auto;
-            padding: 0 20px;
+            padding: 0 30px;
         }}
 
         /* Header */
@@ -605,7 +1050,7 @@ def generate_html_report(url, analysis):
         }}
 
         .services-accordion {{
-            max-width: 900px;
+            max-width: 1400px;
             margin: 0 auto;
         }}
 
@@ -691,7 +1136,7 @@ def generate_html_report(url, analysis):
         }}
 
         .services-accordion-item.active .services-accordion-content {{
-            max-height: 5000px;
+            max-height: 10000px;
         }}
 
         .services-accordion-body {{
@@ -703,15 +1148,16 @@ def generate_html_report(url, analysis):
         .table-scroll-wrapper {{
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
-            margin-bottom: 0;
+            margin-bottom: 8px;
         }}
 
-        .rotate-hint {{
-            display: none;
+        .table-scroll-wrapper::after {{
+            content: "Поверните экран для лучшего просмотра таблицы";
+            display: block;
             text-align: center;
             font-size: 11px;
             color: var(--tp-text-light);
-            padding: 12px 0 20px;
+            padding: 8px 0;
             font-style: italic;
         }}
 
@@ -720,7 +1166,7 @@ def generate_html_report(url, analysis):
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
-            min-width: 500px;
+            min-width: 600px;
         }}
 
         .check-table th {{
@@ -733,14 +1179,16 @@ def generate_html_report(url, analysis):
             padding: 12px 15px;
             border-bottom: 2px solid #e0e0e0;
             background-color: var(--tp-bg);
-            white-space: nowrap;
+            white-space: normal;
+            word-wrap: break-word;
         }}
 
         .check-table td {{
             padding: 14px 15px;
             border-bottom: 1px solid #f0f0f0;
             font-size: 14px;
-            white-space: nowrap;
+            white-space: normal;
+            word-wrap: break-word;
         }}
 
         .check-table tr:last-child td {{
@@ -755,6 +1203,7 @@ def generate_html_report(url, analysis):
             font-family: monospace;
             font-weight: 700;
             text-align: center;
+            white-space: nowrap;
         }}
 
         .score-cell.success {{ color: var(--success); }}
@@ -765,18 +1214,26 @@ def generate_html_report(url, analysis):
             font-family: monospace;
             color: var(--tp-secondary);
             text-align: center;
+            white-space: nowrap;
         }}
 
         .current-cell {{
             font-family: monospace;
             color: var(--tp-secondary);
             font-size: 13px;
+            max-width: 300px;
+            word-wrap: break-word;
         }}
 
         .status-cell {{
             font-weight: 600;
             white-space: nowrap;
         }}
+
+        /* Status classes for checklist */
+        .status-pass {{ color: var(--success); font-weight: 600; }}
+        .status-fail {{ color: var(--danger); font-weight: 600; }}
+        .status-warn {{ color: var(--warning); font-weight: 600; }}
 
         /* Description under table */
         .calculation-description {{
@@ -786,6 +1243,60 @@ def generate_html_report(url, analysis):
             padding: 15px 0;
             border-top: 1px dashed var(--tp-gray-2);
             margin-top: 10px;
+        }}
+
+        /* Priority Items */
+        .priority-section {{
+            margin-bottom: 25px;
+        }}
+
+        .priority-section:last-child {{
+            margin-bottom: 0;
+        }}
+
+        .priority-title {{
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            padding-left: 10px;
+        }}
+
+        .priority-title.critical {{ color: var(--danger); }}
+        .priority-title.high {{ color: var(--tp-accent); }}
+        .priority-title.medium {{ color: var(--warning); }}
+
+        .priority-item {{
+            padding: 16px 20px;
+            margin-bottom: 10px;
+            background: var(--tp-white);
+            border-radius: var(--tp-radius);
+            border-left: 4px solid;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }}
+
+        .priority-item.critical {{ border-color: var(--danger); }}
+        .priority-item.high {{ border-color: var(--tp-accent); }}
+        .priority-item.medium {{ border-color: var(--warning); }}
+
+        .priority-item h4 {{
+            margin: 0 0 8px;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--tp-primary);
+        }}
+
+        .priority-item p {{
+            margin: 0;
+            font-size: 13px;
+            color: var(--tp-text-light);
+        }}
+
+        .priority-item code {{
+            background: var(--tp-gray);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: var(--tp-accent);
         }}
 
         /* CTA Section */
@@ -831,6 +1342,17 @@ def generate_html_report(url, analysis):
         }}
 
         /* Responsive - Mobile Menu */
+        @media (max-width: 1200px) {{
+            .container {{
+                max-width: 100%;
+                padding: 0 20px;
+            }}
+
+            .services-accordion {{
+                max-width: 100%;
+            }}
+        }}
+
         @media (max-width: 991px) {{
             .tp-menu-toggle {{
                 display: flex !important;
@@ -902,24 +1424,6 @@ def generate_html_report(url, analysis):
             }}
         }}
 
-        @media (max-width: 400px) {{
-            .tp-main-menu {{
-                padding-right: 28vw;
-            }}
-        }}
-
-        @media (min-width: 400px) and (max-width: 600px) {{
-            .tp-main-menu {{
-                padding-right: 14vw;
-            }}
-        }}
-
-        @media (min-width: 600px) and (max-width: 1100px) {{
-            .tp-main-menu {{
-                padding-right: 0;
-            }}
-        }}
-
         @media (max-width: 767px) {{
             .tp-hero {{
                 padding: 100px 0 50px;
@@ -944,8 +1448,16 @@ def generate_html_report(url, analysis):
                 flex: 1;
             }}
 
-            .rotate-hint {{
+            .table-scroll-wrapper::after {{
                 display: block;
+            }}
+
+            .check-table {{
+                font-size: 12px;
+            }}
+
+            .check-table th, .check-table td {{
+                padding: 10px 8px;
             }}
         }}
     </style>
@@ -1058,7 +1570,6 @@ def generate_html_report(url, analysis):
                                     </tbody>
                                 </table>
                             </div>
-                            <div class="rotate-hint">Поверните экран для лучшего просмотра таблицы</div>
                             <div class="calculation-description">
                                 <strong>Механизм расчёта:</strong> Google Score — это сумма баллов по 8 факторам (от 0 до Макс). Максимальный возможный балл = 20. Чем выше оценка, тем лучше сайт оптимизирован для Google. Критические факторы: Indexability (если страница закрыта от индексации, остальные факторы не имеют значения) и Schema.org (влияет на Rich Results).
                             </div>
@@ -1094,10 +1605,43 @@ def generate_html_report(url, analysis):
                                     </tbody>
                                 </table>
                             </div>
-                            <div class="rotate-hint">Поверните экран для лучшего просмотра таблицы</div>
                             <div class="calculation-description">
                                 <strong>Механизм расчёта:</strong> Яндекс Score — это сумма баллов по 8 факторам (от 0 до Макс). Максимальный возможный балл = 20. Для Яндекс критичны коммерческие маркеры (телефоны, email, адреса, ИНН/ОГРН) — это фундаментальный сигнал качества бизнеса. Также важны счётчики Метрики и верификация в Вебмастере.
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Чеклист On-Page SEO -->
+                <div class="services-accordion-item">
+                    <div class="services-accordion-header">
+                        <span class="services-accordion-number">&nbsp;03</span>
+                        <div class="services-accordion-title">
+                            <i class="fa-solid fa-clipboard-check"></i>
+                            <h3>Чеклист On-Page SEO</h3>
+                        </div>
+                        <span class="services-accordion-toggle"><i class="fas fa-plus"></i></span>
+                    </div>
+                    <div class="services-accordion-content">
+                        <div class="services-accordion-body">
+{checklist_section}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Приоритизированные рекомендации -->
+                <div class="services-accordion-item">
+                    <div class="services-accordion-header">
+                        <span class="services-accordion-number">&nbsp;04</span>
+                        <div class="services-accordion-title">
+                            <i class="fa-solid fa-list-check"></i>
+                            <h3>Приоритизированные рекомендации</h3>
+                        </div>
+                        <span class="services-accordion-toggle"><i class="fas fa-plus"></i></span>
+                    </div>
+                    <div class="services-accordion-content">
+                        <div class="services-accordion-body">
+{recommendations_section}
                         </div>
                     </div>
                 </div>
