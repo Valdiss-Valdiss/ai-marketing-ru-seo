@@ -16,7 +16,7 @@ def parse_args():
     if len(sys.argv) < 2:
         print(json.dumps({
             "usage": "python3 generate_seo_html.py <url> [--output-dir <dir>]",
-            "example": "python3 generate_seo_html.py https://comandos.ai",
+            "example": "python3 generate_seo_html.py https://example.com",
             "description": "Generate SEO audit HTML report with open4.dev styling"
         }, indent=2))
         sys.exit(1)
@@ -1727,7 +1727,7 @@ def main():
     if len(sys.argv) < 2:
         print(json.dumps({
             "usage": "python3 generate_seo_html.py <url> [--output-dir <dir>]",
-            "example": "python3 generate_seo_html.py https://comandos.ai",
+            "example": "python3 generate_seo_html.py https://example.com",
             "description": "Generate SEO audit HTML report with open4.dev styling"
         }, indent=2))
         sys.exit(1)

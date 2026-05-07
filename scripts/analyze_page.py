@@ -749,7 +749,7 @@ def main():
     if len(sys.argv) < 2:
         print(json.dumps({
             "usage": "python3 analyze_page.py <url>",
-            "example": "python3 analyze_page.py https://comandos.ai",
+            "example": "python3 analyze_page.py https://example.com",
             "description": "Analyzes webpage for Google + Yandex SEO (0-20 scale)"
         }, indent=2))
         return

@@ -1,7 +1,7 @@
-# SEO-аудит — comandos.ai
+# SEO-аудит — example.com
 
 **Дата:** 06 05 2026, 23:23:01
-**URL:** https://comandos.ai
+**URL:** https://example.com
 
 ---
 
