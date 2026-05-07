@@ -20,8 +20,5 @@
   "bugs": {
     "url": "https://github.com/Valdiss-Valdiss/ai-marketing-ru-seo/issues"
   },
-  "homepage": "https://github.com/Valdiss-Valdiss/ai-marketing-ru-seo#readme",
-  "dependencies": {
-    "market-ru-seo": "file:market-ru-seo-1.0.0.tgz"
-  }
+  "homepage": "https://github.com/Valdiss-Valdiss/ai-marketing-ru-seo#readme"
 }
