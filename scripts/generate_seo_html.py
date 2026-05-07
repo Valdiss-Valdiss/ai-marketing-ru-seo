@@ -1843,6 +1843,31 @@ def generate_html_report(url, analysis):
     return html
 
 
+def add_css_tooltips(html):
+    """Add CSS title tooltips to factor names in tables."""
+    tooltips = {
+        "Indexability (Robots/Canonical)": "Проверяет, может ли поисковик просканировать страницу. Без этого сайт вообще не попадает в индекс.",
+        "Title Tag": "Заголовок страницы в поиске. Должен содержать ключевое слово и быть 50-60 символов. Влияет на кликабельность в выдаче.",
+        "H1 Tag": "Главный заголовок страницы. Должен быть ровно один на странице и содержать ключевое слово. Ключевой фактор для SEO.",
+        "Schema.org / JSON-LD": "Структурированные данные — помогают поисковикам понимать тип контента. Влияют на Rich Snippets в выдаче.",
+        "Meta Description": "Краткое описание страницы под заголовком в поиске. Влияет на CTR, но не на ранжирование напрямую.",
+        "Mobile Viewport": "Адаптивность для мобильных устройств. Google использует mobile-first индексацию — без этого фактора сайт теряет позиции.",
+        "Images Alt": "Alt-тексты для изображений — описывают картинки для поисковиков и скрин-ридеров. Помогают в Image Search.",
+        "HTTPS": "Защищённое соединение. Google учитывает HTTPS как фактор ранжирования с 2014 года.",
+        "Коммерческие маркеры": "Телефоны, email, адреса, ИНН — сигналы для Яндекс, что это реальный бизнес. Критичны для коммерческих запросов.",
+        "Микроразметка (OG/Schema)": "Open Graph теги для соцсетей + Schema.org для поисковиков. Помогает корректно показывать контент в превью.",
+        "Счётчики (Метрика/Вебмастер)": "Яндекс.Метрика — для анализа поведенческих факторов. Верификация — подтверждение прав на сайт.",
+    }
+
+    for factor, tooltip in tooltips.items():
+        html = html.replace(
+            f'<td>{factor}</td>',
+            f'<td title="{tooltip}">{factor}</td>'
+        )
+
+    return html
+
+
 def main():
     if len(sys.argv) < 2:
         print(json.dumps({
@@ -1873,6 +1898,7 @@ def main():
 
     analysis = result.get("analysis", {})
     html = generate_html_report(url, analysis)
+    html = add_css_tooltips(html)
 
     filename = get_timestamp_filename(url, "SEO-AUDIT") + ".html"
     filepath = os.path.join(output_dir, filename)
