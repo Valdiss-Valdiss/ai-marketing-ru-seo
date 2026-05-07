@@ -1,6 +1,6 @@
 # market-ru-seo
 
-SEO-аудит на русском языке для OpenCode и Claude Code. Анализ сайта для Google и Яндекс.
+SEO audit in Russian for OpenCode and Claude Code. Website analysis for Google and Yandex.
 
 ## Для пользователей: Установка
 
