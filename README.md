@@ -112,9 +112,9 @@ cd ai-marketing-ru-seo
 Запуск вручную:
 
 ```bash
-python3 scripts/analyze_page.py <url>
-python3 scripts/generate_seo_md.py <url>
-python3 scripts/generate_seo_html.py <url>
+# ВЫПОЛНИТЬ ОБА скрипта (НЕ пропускать ни один):
+python scripts/generate_seo_md.py <url>
+python scripts/generate_seo_html.py <url>
 ```
 
 ## Требования

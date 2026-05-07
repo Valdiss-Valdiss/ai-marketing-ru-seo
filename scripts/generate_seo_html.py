@@ -11,28 +11,6 @@ from datetime import datetime
 from urllib.parse import urlparse
 
 
-def parse_args():
-    """Parse command line arguments."""
-    if len(sys.argv) < 2:
-        print(json.dumps({
-            "usage": "python3 generate_seo_html.py <url> [--output-dir <dir>]",
-            "example": "python3 generate_seo_html.py https://comandos.ai",
-            "description": "Generate SEO audit HTML report with open4.dev styling"
-        }, indent=2))
-        sys.exit(1)
-
-    url = sys.argv[1]
-    if not url.startswith("http"):
-        url = "https://" + url
-
-    output_dir = "."
-    for i, arg in enumerate(sys.argv[2:], start=2):
-        if arg == "--output-dir" and i + 1 < len(sys.argv):
-            output_dir = sys.argv[i + 1]
-
-    return url, output_dir
-
-
 def extract_keywords(h1_list, h2_list, title):
     """Извлекает ключевые слова из заголовков и title."""
     stop_words = {'для', 'все', 'наши', 'компания', 'наш', 'это', 'и', 'в', 'по', 'с', 'не', 'что', 'как', 'где', 'когда', 'зачем', 'это', '—', '-', '|', '/', '\\', '\u2014', '\u2013'}
