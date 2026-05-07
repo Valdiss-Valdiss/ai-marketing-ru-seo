@@ -1,6 +1,6 @@
 {
   "name": "market-ru-seo",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "description": "SEO audit in Russian for OpenCode and Claude Code - website analysis for Google and Yandex",
   "main": ".opencode/plugins/market-ru-seo.js",
@@ -20,5 +20,8 @@
   "bugs": {
     "url": "https://github.com/Valdiss-Valdiss/ai-marketing-ru-seo/issues"
   },
-  "homepage": "https://github.com/Valdiss-Valdiss/ai-marketing-ru-seo#readme"
+  "homepage": "https://github.com/Valdiss-Valdiss/ai-marketing-ru-seo#readme",
+  "dependencies": {
+    "market-ru-seo": "file:market-ru-seo-1.0.0.tgz"
+  }
 }

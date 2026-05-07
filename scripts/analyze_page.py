@@ -44,6 +44,9 @@ class MarketingPageParser(HTMLParser):
         self._yml_feed = ""
         self._yandex_metrics = []
 
+        # Schema.org from HTML microdata
+        self._schema_html_items = []
+
         # Commercial markers (new for 0-20 scoring)
         self._commercial_markers = {
             "phones": [],
@@ -86,6 +89,10 @@ class MarketingPageParser(HTMLParser):
             self._in_title = True
             self._current_text = ""
 
+        elif tag in self.headings:
+            self._in_heading = tag
+            self._current_text = ""
+
         elif tag == "meta":
             name = attrs_dict.get("name", "").lower()
             prop = attrs_dict.get("property", "").lower()
@@ -119,20 +126,48 @@ class MarketingPageParser(HTMLParser):
             if "alternate" in rel and "xml" in type_attr and "yml" in href.lower():
                 self._yml_feed = href
 
-        elif tag in self.headings:
-            self._in_heading = tag
-            self._current_text = ""
+        elif tag in ["div", "section", "article", "span", "p", "li"]:
+            itemscope = "itemscope" in attrs_dict
+            itemtype = attrs_dict.get("itemtype", "")
+            itemprop = attrs_dict.get("itemprop", "")
+            if itemscope and itemtype:
+                self._schema_html_items.append({
+                    "type": itemtype,
+                    "element": tag
+                })
+            if itemprop == "telephone":
+                data_phone = attrs_dict.get("data-phone", "")
+                if data_phone:
+                    self._commercial_markers["phones"].append(data_phone)
+            if itemprop == "email":
+                data_email = attrs_dict.get("data-email", "")
+                if data_email:
+                    self._commercial_markers["emails"].append(data_email)
 
         elif tag == "a":
             self._in_a = True
             self._current_text = ""
             href = attrs_dict.get("href", "")
-            self.links.append({"href": href, "text": "", "attrs": attrs_dict})
+            itemprop = attrs_dict.get("itemprop", "")
+            itemscope = "itemscope" in attrs_dict
+            itemtype = attrs_dict.get("itemtype", "")
+            if itemscope and itemtype:
+                self._schema_html_items.append({
+                    "type": itemtype,
+                    "element": tag
+                })
             social_platforms = ["twitter.com", "x.com", "facebook.com", "linkedin.com",
                                 "instagram.com", "youtube.com", "tiktok.com", "github.com"]
             for platform in social_platforms:
                 if platform in href:
                     self.social_links.append({"platform": platform.split(".")[0], "url": href})
+            if href.startswith("tel:"):
+                phone_num = re.sub(r'^tel:', '', href)
+                self._commercial_markers["phones"].append(phone_num)
+            if href.startswith("mailto:"):
+                email_addr = re.sub(r'^mailto:', '', href)
+                self._commercial_markers["emails"].append(email_addr)
+            self.links.append({"href": href, "text": "", "attrs": attrs_dict, "itemprop": itemprop})
 
         elif tag == "img":
             self.images.append({
@@ -209,14 +244,22 @@ class MarketingPageParser(HTMLParser):
                 counter_id = match.group(1) if match else "unknown"
                 self._yandex_metrics.append({"name": name, "counter_id": counter_id})
 
+    def _normalize_whitespace(self, text):
+        """Replace all types of whitespace with regular space for regex matching."""
+        return re.sub(r'[\s\u00a0\u2000-\u200a\u202f\u205f\u3000]+', ' ', text)
+
     def _detect_commercial_markers(self, text):
         """Detect commercial markers: phones, emails, addresses, INN/OGRN."""
+        text = self._normalize_whitespace(text)
+
         phone_patterns = [
-            r'8\s*\(?\s*\d{3}\s*\)?\s*\d{3}\s*[-–]?\s*\d{2}\s*[-–]?\s*\d{2}',
+            r'8\s*\(?\s*\d{3}\s*\)?\s*\d{3}\s*[-–—]\s*\d{2}\s*[-–—]\s*\d{2}',
             r'8\s*\d{10}',
-            r'\+7\s*\(?\s*\d{3}\s*\)?\s*\d{3}\s*[-–]?\s*\d{2}\s*[-–]?\s*\d{2}',
+            r'\+7\s*\(?\s*\d{3}\s*\)?\s*\d{3}\s*[-–—]\s*\d{2}\s*[-–—]\s*\d{2}',
+            r'\+7\s*\d{10}',
             r'8-800-\d{3}-\d{2}-\d{2}',
-            r'8‑800‑\d{3}‑\d{2}‑\d{2}',
+            r'8‑800‑\d{3}-\d{2}-\d{2}',
+            r'\+7[\s\-().0-9]{10,15}',
         ]
         for pattern in phone_patterns:
             phones = re.findall(pattern, text)
@@ -235,8 +278,12 @@ class MarketingPageParser(HTMLParser):
         self._commercial_markers["inn_ogrn"].extend(ogrn_matches)
 
         address_patterns = [
-            r'\d{6},?\s*[г|G|г\.]\s*[а-яА-Я]+\.?',
-            r'[г|G][\.\s]+[а-яА-Я]+,?\s*[ул\.?|пер\.?|пр\.?][\s]+[а-яА-Я]+',
+            r'\d{6},?\s*[г|G|г\.]\s*[а-яА-Я]+',
+            r'[г|G][\.\s]+[а-яА-Я]+,?\s*[ул\.?|пер\.?|пр\.?|ш\.?|мкр\.?|б-р?|наб\.?][\s]+[а-яА-Я0-9]+',
+            r'[а-яА-Я]+\s+ул\.?\s+[а-яА-Я0-9]+',
+            r'Москва[^,]{5,50}',
+            r'Санкт-Петербург[^,]{5,50}',
+            r'СПб[^,]{5,50}',
         ]
         for pattern in address_patterns:
             addresses = re.findall(pattern, text)
@@ -292,7 +339,7 @@ class MarketingPageParser(HTMLParser):
             if "fbq" in script_content:
                 if "Meta Pixel" not in self.tracking_scripts:
                     self.tracking_scripts.append("Meta Pixel (inline)")
-            if "metrika" in script_content.lower() and "wa" in script_content:
+            if "metrika" in script_content.lower() and ("addEventListener" in script_content or "window.yaContextCallbacks" in script_content or "counter" in script_content.lower()):
                 if not self._yandex_metrics:
                     self._yandex_metrics.append({"name": "Yandex Metrica (inline)", "counter_id": "inline"})
             if self._script_type == "application/ld+json":
@@ -340,11 +387,8 @@ class MarketingPageParser(HTMLParser):
         # Check robots meta for noindex
         has_noindex = "noindex" in self._robots_meta.lower() if self._robots_meta else False
 
-        # Check if canonical points to self
-        parsed_url = urlparse(self._canonical) if self._canonical else None
-        canonical_is_self = False
-        if parsed_url and parsed_url.path:
-            canonical_is_self = parsed_url.path.rstrip('/') == parsed_url.path.rstrip('/')
+        # Check if canonical points to self (will be overwritten by analyze() if needed)
+        canonical_is_self = True
 
         return {
             "seo": {
@@ -402,8 +446,9 @@ class MarketingPageParser(HTMLParser):
             "tracking": {
                 "tools_detected": tracking,
                 "tools_count": len(tracking),
-                "schema_types": [s.get("@type", "Unknown") for s in self.schema_data],
-                "schema_count": len(self.schema_data)
+                "schema_types": [s.get("@type", "Unknown") for s in self.schema_data] + [s.get("type", "Unknown") for s in self._schema_html_items],
+                "schema_count": len(self.schema_data) + len(self._schema_html_items),
+                "schema_html_count": len(self._schema_html_items)
             },
             "technical": {
                 "total_links": len(self.links),
@@ -706,15 +751,19 @@ def analyze(url):
     except Exception as e:
         return {"url": url, "status": "error", "message": f"Parse error: {str(e)}"}
 
+    parser._detect_commercial_markers(parser._all_text_for_matching)
+
     page_results = parser.get_results()
 
     parsed_url = urlparse(url)
     domain = parsed_url.netloc
+    current_domain = parsed_url.netloc
+    current_path = parsed_url.path if parsed_url.path else "/"
     internal = 0
     external = 0
     for link in parser.links:
         href = link.get("href", "")
-        if href.startswith("/") or domain in href:
+        if href.startswith("/") or (domain and href.startswith(domain)) or (domain and ("://" + domain) in href):
             internal += 1
         elif href.startswith("http"):
             external += 1
@@ -723,6 +772,11 @@ def analyze(url):
 
     page_results["robots"] = fetch_robots_txt(url)
     page_results["sitemap"] = fetch_sitemap(url)
+
+    if page_results["seo"]["canonical"]:
+        canonical_parsed = urlparse(page_results["seo"]["canonical"])
+        canonical_is_self = (canonical_parsed.netloc == current_domain)
+        page_results["seo"]["canonical_points_to_self"] = canonical_is_self
 
     scores = {}
 
@@ -749,7 +803,7 @@ def main():
     if len(sys.argv) < 2:
         print(json.dumps({
             "usage": "python3 analyze_page.py <url>",
-            "example": "python3 analyze_page.py https://example.com",
+            "example": "python3 analyze_page.py https://comandos.ai",
             "description": "Analyzes webpage for Google + Yandex SEO (0-20 scale)"
         }, indent=2))
         return

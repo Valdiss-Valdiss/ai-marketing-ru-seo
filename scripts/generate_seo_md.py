@@ -60,8 +60,130 @@ def get_timestamp_filename(url, prefix="SEO-AUDIT"):
     return f"{prefix}-{domain}-{timestamp}"
 
 
-def generate_recommendations_md(google_breakdown, yandex_breakdown):
+def extract_keywords(h1_list, h2_list, title):
+    """Извлекает ключевые слова из заголовков и title."""
+    stop_words = {'для', 'все', 'наши', 'компания', 'наш', 'это', 'и', 'в', 'по', 'с', 'не', 'что', 'как', 'где', 'когда', 'зачем', 'это', '—', '-', '|', '/', '\\', '\u2014', '\u2013'}
+    all_words = []
+    for text in h1_list + h2_list + [title]:
+        if not text:
+            continue
+        words = text.lower().split()
+        all_words.extend([
+            w.strip('.,!?:;()[]{}"\'/\\')
+            for w in words
+            if len(w) > 4 and w.lower() not in stop_words
+        ])
+    result = list(set(all_words))[:5]
+    return result
+
+
+def detect_business_type(schema_types, url):
+    """Определяет тип бизнеса по Schema.org и URL."""
+    schema_str = ' '.join(schema_types).lower()
+    url_lower = url.lower()
+
+    if any(x in schema_str for x in ['localbusiness', 'store', 'retail', 'shop', 'postaladdress']):
+        return "e-commerce"
+    if any(x in schema_str for x in ['professionalservice', 'service']):
+        return "services"
+    if any(x in schema_str for x in ['softwareapplication', 'webapplication']):
+        return "saas"
+    if any(x in url_lower for x in ['/shop/', '/catalog/', '/store/', '/tovary/', '/products/']):
+        return "e-commerce"
+    if any(x in url_lower for x in ['/service/', '/uslugi/', '/services/']):
+        return "services"
+    return "general"
+
+
+def generate_title_recommendation(current_title, domain, keywords, business_type):
+    """Генерирует рекомендуемый Title на основе анализа."""
+    if not current_title:
+        primary_keyword = keywords[0] if keywords else "Главная"
+        return f"<title>{primary_keyword} | {domain}</title>"
+
+    title_stripped = current_title.strip()
+
+    if len(title_stripped) < 45:
+        if keywords:
+            return f"<title>{title_stripped} — {keywords[0]} в {domain.replace('www.', '')}</title>"
+        return f"<title>{title_stripped} | {domain}</title>"
+
+    if len(title_stripped) > 70:
+        return f"<title>{title_stripped[:60]}... | {domain}</title>"
+
+    return f"<title>{title_stripped} | {domain}</title>"
+
+
+def generate_meta_recommendation(current_meta, keywords, business_type):
+    """Генерирует рекомендуемый Meta Description на основе анализа."""
+    if not current_meta:
+        kw = ', '.join(keywords[:3]) if keywords else 'описание'
+        return f"<meta name='description' content='[Ваше краткое описание с ключевыми словами: {kw}]'>"
+
+    meta_stripped = current_meta.strip()
+    if len(meta_stripped) < 100:
+        suffix = ""
+        if keywords:
+            suffix = f" {keywords[0].capitalize()}."
+        return f"<meta name='description' content='{meta_stripped}{suffix}'>"
+
+    if len(meta_stripped) > 160:
+        return f"<meta name='description' content='{meta_stripped[:155]}...'>"
+
+    return f"<meta name='description' content='{meta_stripped}'>"
+
+
+def generate_h1_recommendation(h1_list, keywords, business_type):
+    """Генерирует рекомендуемый H1 на основе анализа."""
+    if h1_list and h1_list[0]:
+        return f"<h1>{h1_list[0]}</h1>"
+
+    if keywords:
+        primary_keyword = keywords[0].capitalize()
+        return f"<h1>{primary_keyword}</h1>"
+
+    return "<h1>[Основной заголовок страницы]</h1>"
+
+
+def generate_recommendations_md(google_breakdown, yandex_breakdown, url, analysis):
     """Generate recommendations section."""
+    from urllib.parse import urlparse
+
+    seo = analysis.get("seo", {})
+    tracking = analysis.get("tracking", {})
+    content = analysis.get("content", {})
+
+    current_title = seo.get("title", "")
+    current_meta = seo.get("meta_description", "")
+    h1_list = content.get("h1", [])
+    h2_list = content.get("h2", [])
+    schema_types = tracking.get("schema_types", [])
+    domain = urlparse(url).netloc
+
+    keywords = extract_keywords(h1_list, h2_list, current_title)
+    business_type = detect_business_type(schema_types, url)
+    title_recommended = generate_title_recommendation(current_title, domain, keywords, business_type)
+    meta_recommended = generate_meta_recommendation(current_meta, keywords, business_type)
+    h1_recommended = generate_h1_recommendation(h1_list, keywords, business_type)
+
+    rec_data = {
+        "url": url,
+        "domain": domain,
+        "business_type": business_type,
+        "keywords": keywords,
+        "current": {
+            "title": current_title,
+            "meta_description": current_meta,
+            "h1": h1_list,
+            "h2": h2_list,
+        },
+        "recommended": {
+            "title": title_recommended,
+            "meta_description": meta_recommended,
+            "h1": h1_recommended,
+        }
+    }
+
     def get_recommendations():
         critical = []
         high = []
@@ -104,22 +226,22 @@ def generate_recommendations_md(google_breakdown, yandex_breakdown):
         "title": {
             "title": "Улучшить Title Tag",
             "desc": "Минимум 50-60 символов с ключевыми словами и названием бренда.",
-            "code": '<title>AI-автоматизация | Команда AI 24/7 | Brand</title>'
+            "code": rec_data["recommended"]["title"]
         },
         "h1": {
             "title": "Добавить H1 с ключевым словом",
             "desc": "Ровно один H1 на странице с основным ключевым словом.",
-            "code": "<h1>AI-автоматизация бизнеса</h1>"
+            "code": rec_data["recommended"]["h1"]
         },
         "schema": {
             "title": "Добавить Schema.org разметку",
-            "desc": "Organization, FAQPage, Service для усиления E-E-A-T.",
+            "desc": f"Рекомендуемые типы: LocalBusiness, Store, Service. Найдены: {', '.join(rec_data.get('keywords', ['—'])[:3])}",
             "code": None
         },
         "meta_description": {
             "title": "Добавить Meta Description",
             "desc": "140-160 символов с CTA и ключевыми словами.",
-            "code": '<meta name="description" content="...">'
+            "code": rec_data["recommended"]["meta_description"]
         },
         "images_alt": {
             "title": "Alt тексты для изображений",
@@ -164,7 +286,7 @@ def generate_recommendations_md(google_breakdown, yandex_breakdown):
                 "desc": f"Проблема: {current}",
                 "code": None
             })
-            code_line = f" \\`{template['code']}\\`" if template["code"] else ""
+            code_line = (" `" + template["code"] + "`") if template["code"] else ""
             result += f"1. **{template['title']}** — {template['desc']}{code_line}\n"
         return result
 
@@ -264,7 +386,7 @@ def generate_md_report(url, analysis):
 | YML-фид | {"Найден" if yml_feed else "Отсутствует"} |
 """
 
-    recommendations = generate_recommendations_md(google_breakdown, yandex_breakdown)
+    recommendations = generate_recommendations_md(google_breakdown, yandex_breakdown, url, analysis)
 
     md = f"""# SEO-аудит — {domain}
 

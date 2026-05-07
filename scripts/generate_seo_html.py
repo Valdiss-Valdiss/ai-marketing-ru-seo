@@ -16,7 +16,7 @@ def parse_args():
     if len(sys.argv) < 2:
         print(json.dumps({
             "usage": "python3 generate_seo_html.py <url> [--output-dir <dir>]",
-            "example": "python3 generate_seo_html.py https://example.com",
+            "example": "python3 generate_seo_html.py https://comandos.ai",
             "description": "Generate SEO audit HTML report with open4.dev styling"
         }, indent=2))
         sys.exit(1)
@@ -25,12 +25,139 @@ def parse_args():
     if not url.startswith("http"):
         url = "https://" + url
 
-    output_dir = "temp"
+    output_dir = "."
     for i, arg in enumerate(sys.argv[2:], start=2):
         if arg == "--output-dir" and i + 1 < len(sys.argv):
             output_dir = sys.argv[i + 1]
 
     return url, output_dir
+
+
+def extract_keywords(h1_list, h2_list, title):
+    """Извлекает ключевые слова из заголовков и title."""
+    stop_words = {'для', 'все', 'наши', 'компания', 'наш', 'это', 'и', 'в', 'по', 'с', 'не', 'что', 'как', 'где', 'когда', 'зачем', 'это', '—', '-', '|', '/', '\\', '\u2014', '\u2013'}
+    all_words = []
+    for text in h1_list + h2_list + [title]:
+        if not text:
+            continue
+        words = text.lower().split()
+        all_words.extend([
+            w.strip('.,!?:;()[]{}"\'/\\') 
+            for w in words 
+            if len(w) > 4 and w.lower() not in stop_words
+        ])
+    result = list(set(all_words))[:5]
+    return result
+
+
+def detect_business_type(schema_types, url):
+    """Определяет тип бизнеса по Schema.org и URL."""
+    schema_str = ' '.join(schema_types).lower()
+    url_lower = url.lower()
+
+    if any(x in schema_str for x in ['localbusiness', 'store', 'retail', 'shop', 'postaladdress']):
+        return "e-commerce"
+    if any(x in schema_str for x in ['professionalservice', 'service']):
+        return "services"
+    if any(x in schema_str for x in ['softwareapplication', 'webapplication']):
+        return "saas"
+    if any(x in url_lower for x in ['/shop/', '/catalog/', '/store/', '/tovary/', '/products/']):
+        return "e-commerce"
+    if any(x in url_lower for x in ['/service/', '/uslugi/', '/services/']):
+        return "services"
+    return "general"
+
+
+def generate_title_recommendation(current_title, domain, keywords, business_type):
+    """Генерирует рекомендуемый Title на основе анализа."""
+    if not current_title:
+        primary_keyword = keywords[0] if keywords else "Главная"
+        return f"<title>{primary_keyword} | {domain}</title>"
+    
+    title_stripped = current_title.strip()
+    
+    if len(title_stripped) < 45:
+        if keywords:
+            return f"<title>{title_stripped} — {keywords[0]} в {domain.replace('www.', '')}</title>"
+        return f"<title>{title_stripped} | {domain}</title>"
+    
+    if len(title_stripped) > 70:
+        return f"<title>{title_stripped[:60]}... | {domain}</title>"
+    
+    return f"<title>{title_stripped} | {domain}</title>"
+
+
+def generate_meta_recommendation(current_meta, keywords, business_type):
+    """Генерирует рекомендуемый Meta Description на основе анализа."""
+    if not current_meta:
+        kw = ', '.join(keywords[:3]) if keywords else 'описание'
+        return f"<meta name='description' content='[Ваше краткое описание с ключевыми словами: {kw}]'>"
+    
+    meta_stripped = current_meta.strip()
+    if len(meta_stripped) < 100:
+        suffix = ""
+        if keywords:
+            suffix = f" {keywords[0].capitalize()}."
+        return f"<meta name='description' content='{meta_stripped}{suffix}'>"
+    
+    if len(meta_stripped) > 160:
+        return f"<meta name='description' content='{meta_stripped[:155]}...'>"
+    
+    return f"<meta name='description' content='{meta_stripped}'>"
+
+
+def generate_h1_recommendation(h1_list, keywords, business_type):
+    """Генерирует рекомендуемый H1 на основе анализа."""
+    if h1_list and h1_list[0]:
+        return f"<h1>{h1_list[0]}</h1>"
+
+    if keywords:
+        primary_keyword = keywords[0].capitalize()
+        return f"<h1>{primary_keyword}</h1>"
+
+    return "<h1>[Основной заголовок страницы]</h1>"
+
+
+def build_recommendations_data(url, analysis):
+    """
+    Единый источник всех рекомендаций на основе анализа.
+    Используется и для Section 03, и для Section 04.
+    """
+    seo = analysis.get("seo", {})
+    tracking = analysis.get("tracking", {})
+    content = analysis.get("content", {})
+    
+    current_title = seo.get("title", "")
+    current_meta = seo.get("meta_description", "")
+    h1_list = content.get("h1", [])
+    h2_list = content.get("h2", [])
+    schema_types = tracking.get("schema_types", [])
+    domain = urlparse(url).netloc
+    
+    keywords = extract_keywords(h1_list, h2_list, current_title)
+    business_type = detect_business_type(schema_types, url)
+    
+    title_recommended = generate_title_recommendation(current_title, domain, keywords, business_type)
+    meta_recommended = generate_meta_recommendation(current_meta, keywords, business_type)
+    h1_recommended = generate_h1_recommendation(h1_list, keywords, business_type)
+    
+    return {
+        "url": url,
+        "domain": domain,
+        "business_type": business_type,
+        "keywords": keywords,
+        "current": {
+            "title": current_title,
+            "meta_description": current_meta,
+            "h1": h1_list,
+            "h2": h2_list,
+        },
+        "recommended": {
+            "title": title_recommended,
+            "meta_description": meta_recommended,
+            "h1": h1_recommended,
+        }
+    }
 
 
 def get_score_color(score, max_score):
@@ -97,11 +224,13 @@ def get_timestamp_filename(url, prefix="SEO-AUDIT"):
     return f"{prefix}-{domain}-{timestamp}"
 
 
-def generate_checklist_section(analysis):
+def generate_checklist_section(analysis, url):
     """Generate Section 3: On-Page SEO Checklist with subsections."""
     seo = analysis.get("seo", {})
     google_breakdown = analysis.get("scores", {}).get("google_seo_breakdown", {})
     yandex_breakdown = analysis.get("scores", {}).get("yandex_seo_breakdown", {})
+
+    rec_data = build_recommendations_data(url, analysis)
 
     title = seo.get("title", "")
     title_length = seo.get("title_length", 0)
@@ -146,7 +275,10 @@ def generate_checklist_section(analysis):
     title_max = google_breakdown.get("title", {}).get("max", 3)
     title_status = get_status_class(title_score, title_max)
     title_icon = get_icon_for_check(title_status)
-    title_recommended = "AI-автоматизация бизнеса | Команда AI-ассистентов 24/7 | Commandos AI"
+    title_recommended = rec_data["recommended"]["title"]
+    title_current = title if title else "(отсутствует)"
+    has_keyword_in_title = any(kw.lower() in title.lower() for kw in rec_data["keywords"]) if title else False
+    domain = rec_data["domain"]
 
     html += f'''<h4 style="margin: 0 0 15px; color: var(--tp-primary);">Title Tag</h4>
                             <div class="table-scroll-wrapper">
@@ -162,8 +294,8 @@ def generate_checklist_section(analysis):
                                     <tbody>
                                         <tr>
                                             <td>Текст</td>
-                                            <td class="current-cell">{escape_html(truncate(title, 60))}</td>
-                                            <td>{escape_html(title_recommended)}</td>
+                                            <td class="current-cell">{escape_html(truncate(title_current, 60))}</td>
+                                            <td>{escape_html(truncate(title_recommended, 60))}</td>
                                             <td class="{title_status}">{title_icon}</td>
                                         </tr>
                                         <tr>
@@ -174,15 +306,15 @@ def generate_checklist_section(analysis):
                                         </tr>
                                         <tr>
                                             <td>Ключевое слово</td>
-                                            <td class="current-cell">—</td>
-                                            <td>"AI автоматизация"</td>
-                                            <td class="status-fail">❌</td>
+                                            <td class="current-cell">{"найдено" if has_keyword_in_title else "—"}</td>
+                                            <td>{escape_html(rec_data["keywords"][0]) if rec_data["keywords"] else "определить из H1/H2"}</td>
+                                            <td class="{"status-pass" if has_keyword_in_title else "status-fail"}">{"✅" if has_keyword_in_title else "❌"}</td>
                                         </tr>
                                         <tr>
                                             <td>Бренд в конце</td>
-                                            <td class="current-cell">—</td>
-                                            <td>Commandos AI</td>
-                                            <td class="status-fail">❌</td>
+                                            <td class="current-cell">{"да" if domain in title else "—"}</td>
+                                            <td>{escape_html(domain)}</td>
+                                            <td class="{"status-pass" if domain in title else "status-fail"}">{"✅" if domain in title else "❌"}</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -194,7 +326,9 @@ def generate_checklist_section(analysis):
     meta_max = google_breakdown.get("meta_description", {}).get("max", 2)
     meta_status = get_status_class(meta_score, meta_max)
     meta_icon = get_icon_for_check(meta_status)
-    meta_recommended = "Внедряем AI-команду для вашего бизнеса: маркетинг, продажи, поддержка 24/7. Экономия до 68% на ФОТ. Автоматизация за 7 дней."
+    meta_recommended = rec_data["recommended"]["meta_description"]
+    meta_current = meta_desc if meta_desc else "(отсутствует)"
+    has_cta_in_meta = any(cta in meta_desc.lower() for cta in ['оставьте', 'заказать', 'купить', 'подробнее', 'свяжитесь', 'напишите']) if meta_desc else False
 
     html += f'''<h4 style="margin: 25px 0 15px; color: var(--tp-primary);">Meta Description</h4>
                             <div class="table-scroll-wrapper">
@@ -210,8 +344,8 @@ def generate_checklist_section(analysis):
                                     <tbody>
                                         <tr>
                                             <td>Текст</td>
-                                            <td class="current-cell">{"(пусто)" if not meta_desc else escape_html(truncate(meta_desc, 60))}</td>
-                                            <td>{escape_html(meta_recommended)}</td>
+                                            <td class="current-cell">{"(пусто)" if not meta_desc else escape_html(truncate(meta_current, 60))}</td>
+                                            <td>{escape_html(truncate(meta_recommended, 60))}</td>
                                             <td class="{meta_status}">{meta_icon}</td>
                                         </tr>
                                         <tr>
@@ -222,9 +356,9 @@ def generate_checklist_section(analysis):
                                         </tr>
                                         <tr>
                                             <td>CTA</td>
-                                            <td class="current-cell">—</td>
+                                            <td class="current-cell">{"да" if has_cta_in_meta else "—"}</td>
                                             <td>"Оставьте заявку!"</td>
-                                            <td class="status-fail">❌</td>
+                                            <td class="{"status-pass" if has_cta_in_meta else "status-fail"}">{"✅" if has_cta_in_meta else "❌"}</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -237,6 +371,8 @@ def generate_checklist_section(analysis):
     h1_status = get_status_class(h1_score_g, h1_max_g)
     h1_icon = get_icon_for_check(h1_status)
     h1_current = h1_list[0] if h1_list else "(отсутствует)"
+    h1_recommended = rec_data["recommended"]["h1"]
+    has_h1_keyword = any(kw.lower() in h1_current.lower() for kw in rec_data["keywords"]) if h1_current != "(отсутствует)" else False
 
     html += f'''<h4 style="margin: 25px 0 15px; color: var(--tp-primary);">Иерархия заголовков</h4>
                             <div class="table-scroll-wrapper">
@@ -253,7 +389,7 @@ def generate_checklist_section(analysis):
                                         <tr>
                                             <td>H1</td>
                                             <td class="current-cell">{escape_html(truncate(h1_current, 60))}</td>
-                                            <td>1 заголовок с ключевым словом</td>
+                                            <td>{escape_html(truncate(h1_recommended, 60))}</td>
                                             <td class="{h1_status}">{h1_icon}</td>
                                         </tr>
                                         <tr>
@@ -385,18 +521,24 @@ def generate_checklist_section(analysis):
     return html
 
 
-def generate_recommendations_section(google_breakdown, yandex_breakdown):
+def generate_recommendations_section(google_breakdown, yandex_breakdown, url, analysis):
     """Generate Section 4: Prioritized Recommendations."""
+    rec_data = build_recommendations_data(url, analysis)
+
     def get_recommendations():
         critical = []
         high = []
         medium = []
 
         all_factors = []
+        seen_names = set()
         for name, data in google_breakdown.items():
             all_factors.append(("Google", name, data))
+            seen_names.add(name)
         for name, data in yandex_breakdown.items():
-            all_factors.append(("Яндекс", name, data))
+            if name not in seen_names:
+                all_factors.append(("Яндекс", name, data))
+                seen_names.add(name)
 
         for system, name, data in all_factors:
             score = data.get("score", 0)
@@ -426,22 +568,22 @@ def generate_recommendations_section(google_breakdown, yandex_breakdown):
         "title": {
             "title": "Улучшить Title Tag",
             "desc": "Минимум 50-60 символов с ключевыми словами и названием бренда.",
-            "code": '<title>AI-автоматизация | Команда AI 24/7 | Brand</title>'
+            "code": rec_data["recommended"]["title"]
         },
         "h1": {
             "title": "Добавить H1 с ключевым словом",
             "desc": "Ровно один H1 на странице с основным ключевым словом.",
-            "code": '<h1>AI-автоматизация бизнеса</h1>'
+            "code": rec_data["recommended"]["h1"]
         },
         "schema": {
             "title": "Добавить Schema.org разметку",
-            "desc": "Organization, FAQPage, Service для усиления E-E-A-T.",
+            "desc": f"Рекомендуемые типы: LocalBusiness, Store, Service. Найдены: {', '.join(rec_data.get('keywords', ['—'])[:3])}",
             "code": None
         },
         "meta_description": {
             "title": "Добавить Meta Description",
             "desc": "140-160 символов с CTA и ключевыми словами.",
-            "code": '<meta name="description" content="...">'
+            "code": rec_data["recommended"]["meta_description"]
         },
         "images_alt": {
             "title": "Alt тексты для изображений",
@@ -485,7 +627,7 @@ def generate_recommendations_section(google_breakdown, yandex_breakdown):
                 "code": None
             })
 
-            code_html = f'<p style="margin-top: 8px;"><code>{template["code"]}</code></p>' if template["code"] else ""
+            code_html = f'<p style="margin-top: 8px;"><code>{escape_html(template["code"])}</code></p>' if template["code"] else ""
             html += f'''
                                 <div class="priority-item {priority_class}">
                                     <h4>{escape_html(template["title"])}</h4>
@@ -609,8 +751,8 @@ def generate_html_report(url, analysis):
     google_rows = build_table_rows(google_items, google_score, google_max)
     yandex_rows = build_table_rows(yandex_items, yandex_score, yandex_max)
 
-    checklist_section = generate_checklist_section(analysis)
-    recommendations_section = generate_recommendations_section(google_breakdown, yandex_breakdown)
+    checklist_section = generate_checklist_section(analysis, url)
+    recommendations_section = generate_recommendations_section(google_breakdown, yandex_breakdown, url, analysis)
 
     html = f"""<!DOCTYPE html>
 <html lang="ru">
@@ -1727,7 +1869,7 @@ def main():
     if len(sys.argv) < 2:
         print(json.dumps({
             "usage": "python3 generate_seo_html.py <url> [--output-dir <dir>]",
-            "example": "python3 generate_seo_html.py https://example.com",
+            "example": "python3 generate_seo_html.py https://comandos.ai",
             "description": "Generate SEO audit HTML report with open4.dev styling"
         }, indent=2))
         sys.exit(1)
@@ -1736,7 +1878,7 @@ def main():
     if not url.startswith("http"):
         url = "https://" + url
 
-    output_dir = "temp"
+    output_dir = "."
     for i, arg in enumerate(sys.argv[2:], start=2):
         if arg == "--output-dir" and i + 1 < len(sys.argv):
             output_dir = sys.argv[i + 1]
