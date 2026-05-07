@@ -1,6 +1,6 @@
 {
   "name": "market-ru-seo",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "description": "SEO audit in Russian for OpenCode and Claude Code - website analysis for Google and Yandex",
   "main": ".opencode/plugins/market-ru-seo.js",
