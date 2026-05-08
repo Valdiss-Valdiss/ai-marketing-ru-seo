@@ -1881,7 +1881,7 @@ def main():
     if not url.startswith("http"):
         url = "https://" + url
 
-    output_dir = "."
+    output_dir = os.environ.get("OPENCODE_WORKING_DIR", os.getcwd())
     for i, arg in enumerate(sys.argv[2:], start=2):
         if arg == "--output-dir" and i + 1 < len(sys.argv):
             output_dir = sys.argv[i + 1]

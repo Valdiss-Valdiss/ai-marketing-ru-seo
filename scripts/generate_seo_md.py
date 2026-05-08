@@ -458,6 +458,8 @@ def main():
     if not url.startswith("http"):
         url = "https://" + url
 
+    output_dir = os.environ.get("OPENCODE_WORKING_DIR", os.getcwd())
+
     from analyze_page import analyze
     print(f"Analyzing: {url}")
     result = analyze(url)
@@ -469,8 +471,9 @@ def main():
     analysis = result.get("analysis", {})
     md = generate_md_report(url, analysis)
 
+    os.makedirs(output_dir, exist_ok=True)
     filename = get_timestamp_filename(url, "SEO-AUDIT") + ".md"
-    filepath = os.path.join(".", filename)
+    filepath = os.path.join(output_dir, filename)
 
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(md)
