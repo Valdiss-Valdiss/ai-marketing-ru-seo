@@ -1,6 +1,6 @@
 #!/bin/bash
-# AI Marketing Skills — Claude Code Skills Installer
-# Single skill: market-ru-seo
+# AI Marketing Skills — Universal Installer
+# Supports: OpenCode + Claude Code on macOS, Linux, Windows (Git Bash/WSL)
 
 set -e
 
@@ -11,77 +11,125 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
+SKILL_NAME="market-ru-seo"
+REPO="https://github.com/Valdiss-Valdiss/ai-marketing-ru-seo.git"
+
 echo ""
 echo -e "${CYAN}╔══════════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║   AI Marketing Suite — Claude Code Skills      ║${NC}"
-echo -e "${CYAN}║   market-ru-seo (SEO-аудит)                  ║${NC}"
+echo -e "${CYAN}║   AI Marketing Suite — Universal Installer    ║${NC}"
+echo -e "${CYAN}║   $SKILL_NAME                            ║${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}"
 echo ""
+
+detect_platform() {
+    if command -v claude &>/dev/null; then
+        echo "claude"
+    elif [ -d "$HOME/.claude" ]; then
+        echo "claude"
+    elif [ -d "$HOME/.config/opencode" ] || [ -n "$OPENCODE_CONFIG_DIR" ]; then
+        echo "opencode"
+    elif command -v opencode &>/dev/null; then
+        echo "opencode"
+    else
+        echo "unknown"
+    fi
+}
 
 if [ -n "$BASH_SOURCE" ] && [ "$BASH_SOURCE" != "bash" ] && [ -f "$BASH_SOURCE" ]; then
     SCRIPT_DIR="$(cd "$(dirname "$BASH_SOURCE")" && pwd)"
 else
     echo -e "${YELLOW}Running remote install — cloning repository...${NC}"
     TEMP_DIR=$(mktemp -d)
-    git clone --depth 1 https://github.com/Valdiss-Valdiss/ai-marketing-ru-seo.git "$TEMP_DIR/ai-marketing-ru-seo" 2>/dev/null
-    if [ $? -ne 0 ]; then
+    git clone --depth 1 "$REPO" "$TEMP_DIR/$SKILL_NAME" 2>/dev/null || {
         echo -e "${RED}Failed to clone repository.${NC}"
         exit 1
-    fi
-    SCRIPT_DIR="$TEMP_DIR/ai-marketing-ru-seo"
+    }
+    SCRIPT_DIR="$TEMP_DIR/$SKILL_NAME"
 fi
 
-SKILLS_DIR="$HOME/.claude/skills"
+PLATFORM=$(detect_platform)
+echo -e "${BLUE}Detected platform:${NC} $PLATFORM"
 
-echo -e "${BLUE}Source:${NC}  $SCRIPT_DIR"
-echo -e "${BLUE}Target:${NC} $SKILLS_DIR"
-echo ""
+case "$PLATFORM" in
+    claude)
+        echo -e "${GREEN}Installing for Claude Code...${NC}"
+        SKILLS_DIR="$HOME/.claude/skills"
+        AGENTS_DIR="$HOME/.claude/agents"
 
-if command -v claude &>/dev/null; then
-    echo -e "${GREEN}✓ Claude Code detected${NC}"
-else
-    echo -e "${YELLOW}⚠ Claude Code not found in PATH${NC}"
-    if [ -t 0 ]; then
-        read -p "  Continue anyway? (y/n): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            echo "Installation cancelled."
-            exit 0
+        mkdir -p "$SKILLS_DIR"
+        mkdir -p "$AGENTS_DIR"
+
+        echo -e "${BLUE}Installing $SKILL_NAME...${NC}"
+        mkdir -p "$SKILLS_DIR/$SKILL_NAME"
+        cp "$SCRIPT_DIR/skills/$SKILL_NAME/SKILL.md" "$SKILLS_DIR/$SKILL_NAME/SKILL.md"
+        echo -e "  ${GREEN}✓${NC} skills/$SKILL_NAME/SKILL.md"
+
+        if [ -f "$SCRIPT_DIR/agents/$SKILL_NAME.md" ]; then
+            cp "$SCRIPT_DIR/agents/$SKILL_NAME.md" "$AGENTS_DIR/$SKILL_NAME.md"
+            echo -e "  ${GREEN}✓${NC} agents/$SKILL_NAME.md"
         fi
-    else
-        echo "  Continuing (non-interactive mode)..."
-    fi
-fi
 
-mkdir -p "$SKILLS_DIR"
+        SCRIPTS_TARGET="$SKILLS_DIR/$SKILL_NAME/scripts"
+        mkdir -p "$SCRIPTS_TARGET"
+        if [ -d "$SCRIPT_DIR/scripts" ]; then
+            cp "$SCRIPT_DIR/scripts"/*.py "$SCRIPTS_TARGET/" 2>/dev/null || true
+            echo -e "  ${GREEN}✓${NC} scripts/*.py"
+        fi
+        ;;
 
-echo -e "${BLUE}Installing market-ru-seo...${NC}"
-mkdir -p "$SKILLS_DIR/market-ru-seo"
-cp "$SCRIPT_DIR/skills/market-ru-seo/SKILL.md" "$SKILLS_DIR/market-ru-seo/SKILL.md"
-echo -e "  ${GREEN}✓${NC} skills/market-ru-seo/SKILL.md"
+    opencode)
+        echo -e "${GREEN}Installing for OpenCode...${NC}"
 
-if [ -f "$SCRIPT_DIR/agents/market-ru-seo.md" ]; then
-    mkdir -p "$HOME/.claude/agents"
-    cp "$SCRIPT_DIR/agents/market-ru-seo.md" "$HOME/.claude/agents/market-ru-seo.md"
-    echo -e "  ${GREEN}✓${NC} agents/market-ru-seo.md"
-fi
+        if command -v npm &>/dev/null; then
+            echo -e "${BLUE}Installing via npm...${NC}"
+            cd "$SCRIPT_DIR"
+            npm install -g 2>/dev/null || {
+                echo -e "${YELLOW}npm install failed, trying alternative...${NC}"
+            }
+            cd ~
+        fi
 
-SCRIPTS_TARGET="$SKILLS_DIR/market-ru-seo/scripts"
-mkdir -p "$SCRIPTS_TARGET"
+        NPM_ROOT=$(npm root -g 2>/dev/null)
+        if [ -d "$NPM_ROOT/$SKILL_NAME" ]; then
+            echo -e "${GREEN}✓${NC} npm package installed to $NPM_ROOT/$SKILL_NAME"
 
-if [ -f "$SCRIPT_DIR/scripts/analyze_page.py" ]; then
-    cp "$SCRIPT_DIR/scripts/analyze_page.py" "$SCRIPTS_TARGET/analyze_page.py"
-    chmod +x "$SCRIPTS_TARGET/analyze_page.py"
-    echo -e "  ${GREEN}✓${NC} scripts/analyze_page.py"
-fi
+            OPENCODE_JSON="$HOME/.config/opencode/opencode.json"
+            if [ -f "$OPENCODE_JSON" ]; then
+                PLUGIN_PATH="$NPM_ROOT/$SKILL_NAME/.opencode/plugins/$SKILL_NAME.js"
 
-echo -e "${BLUE}Checking Python dependencies...${NC}"
-if command -v python3 &>/dev/null; then
-    PYTHON_VERSION=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null)
-    echo -e "  ${GREEN}✓${NC} Python $PYTHON_VERSION detected"
-else
-    echo -e "  ${YELLOW}⚠${NC} Python 3 not found — scripts won't work"
-fi
+                if ! grep -q "$PLUGIN_PATH" "$OPENCODE_JSON" 2>/dev/null; then
+                    echo -e "${BLUE}Adding plugin to opencode.json...${NC}"
+
+                    if grep -q '"plugin": \[' "$OPENCODE_JSON"; then
+                        sed -i "s|(\"plugin\": \[)|\\1\n    \"$PLUGIN_PATH\",|" "$OPENCODE_JSON"
+                    else
+                        echo "  ${YELLOW}⚠${NC} Could not find plugin array in opencode.json"
+                        echo "  Please add manually: $PLUGIN_PATH"
+                    fi
+                else
+                    echo -e "${GREEN}✓${NC} Plugin already in opencode.json"
+                fi
+            else
+                echo -e "${YELLOW}⚠${NC} opencode.json not found at $OPENCODE_JSON"
+            fi
+        else
+            echo -e "${YELLOW}⚠${NC} npm package not found, falling back to manual install"
+            MANUAL_DIR="$HOME/.config/skills/$SKILL_NAME"
+            mkdir -p "$MANUAL_DIR"
+            cp -r "$SCRIPT_DIR/skills/$SKILL_NAME" "$MANUAL_DIR/"
+            echo -e "${GREEN}✓${NC} Installed to $MANUAL_DIR"
+        fi
+        ;;
+
+    *)
+        echo -e "${YELLOW}⚠ Unknown platform, installing for Claude Code as fallback${NC}"
+        SKILLS_DIR="$HOME/.claude/skills"
+        mkdir -p "$SKILLS_DIR"
+        mkdir -p "$SKILLS_DIR/$SKILL_NAME"
+        cp -r "$SCRIPT_DIR/skills/$SKILL_NAME" "$SKILLS_DIR/"
+        echo -e "${GREEN}✓${NC} Installed to $SKILLS_DIR/$SKILL_NAME"
+        ;;
+esac
 
 if [ -n "$TEMP_DIR" ] && [ -d "$TEMP_DIR" ]; then
     rm -rf "$TEMP_DIR"
@@ -92,14 +140,10 @@ echo -e "${GREEN}╔════════════════════
 echo -e "${GREEN}║           Installation Complete!              ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════╝${NC}"
 echo ""
-echo -e "  Skills installed:    ${GREEN}1${NC} (market-ru-seo)"
-echo ""
 echo -e "${CYAN}Available Commands:${NC}"
 echo "  /market-ru-seo <url>  SEO-аудит сайта (Google + Яндекс)"
 echo ""
-echo -e "${CYAN}Usage in Claude Code:${NC}"
-echo "  1. Start new Claude Code session"
+echo -e "${BLUE}Next steps:${NC}"
+echo "  1. Restart your AI assistant (OpenCode or Claude Code)"
 echo "  2. Type: /market-ru-seo https://example.com"
-echo ""
-echo -e "  ${YELLOW}For OpenCode: npm install -g market-ru-seo${NC}"
 echo ""
